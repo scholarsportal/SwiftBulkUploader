@@ -1,2 +1,4 @@
 sample-upload/*
 temp/*
+
+*.pyc

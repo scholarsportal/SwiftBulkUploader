@@ -24,6 +24,8 @@ def split_file(file_path, directory, size):
 			if not buf:
 				 # we've read the entire file in, so we're done.
 				 break
+
+		    # Store the file in a parallel folder structure
 			create_file = os.path.join(directory, "{}-{}.txt".format(file_name,fileNumber))
 			outFile = open(create_file, "wt")
 			outFile.write(buf)
@@ -31,6 +33,21 @@ def split_file(file_path, directory, size):
 			files_created.append(create_file)
 			fileNumber += 1 
 	return files_created
+
+def create_file_path(directory, file_path):
+	'''Given a directory to store a file in and a file_path, create the requried
+	directories within directory to mimic file_path. Return the path created.'''
+
+	# End case, when file_path is just a file within directory
+	directories = file_path.split('/');
+	if os.path.isfile(file_path) || len(directories):
+		return
+
+	# Make directory
+	create_directory = directories[0]
+	# Create subdirectories
+	return create_directory + 
+	    create_file_path(create_directory, file_path.split('/'))
 
 
 if __name__ == "__main__":
