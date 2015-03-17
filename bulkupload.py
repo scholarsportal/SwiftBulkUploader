@@ -50,7 +50,9 @@ def olrc_upload(files, target_directory):
 
 		# Prepend target directory to files and remove the source_directory
 		# which is the first part of souce_file.
-		target_file = os.path.join(target_directory, source_file.split('/',1)[1])
+		target_file = os.path.join(
+			target_directory, source_file.split('/',1)[1]
+		)
 
 		# Check file not already online. 
 		if not is_uploaded(target_file):
@@ -64,7 +66,8 @@ def olrc_upload(files, target_directory):
 
 			# Partition files if they are greater than 1GB before uploading
 			else:
-				if (olrc_upload_segments(source_file, target_directory)):
+
+				if (olrc_upload_segments(source_file, target_file)):
 					count += 1
 				else:
 					print('Issue uploading: ' + source_file)
@@ -85,7 +88,6 @@ def olrc_upload_segments(source_file, target_directory):
 	sys.stdout.flush()
 	sys.stdout.write("\rPartitioning file {}".format(source_file))
 
-	# ISSUE: need target_directory too
 	for segment in segments:
 
 		# Files are within the temp directory locally. On the server the file
