@@ -90,7 +90,7 @@ def olrc_upload_segments(source_file, target_directory):
     ''' Break up the source_file into segments and upload them into
     target_directory'''
 
-    segments, readme = filesegmenter.split_file(
+    segments = filesegmenter.split_file(
         source_file,
         'temp',
         SEGMENT_SIZE
@@ -110,8 +110,12 @@ def olrc_upload_segments(source_file, target_directory):
 
         olrc_upload_file(segment, target_file)
 
-    # Create readme file.
+    # Create and upload readme file.
 
+    readme = "The file in this directory has been segmented for convenient" \
+        " upload and download. To assemble the file, run the following " \
+        "command on your machine in the directory with all the segments: " \
+        "\n\ncat * >> {}".format(source_file.split('/')[-1])
     outFile = open("temp/readme.txt", "wt")
     outFile.write(readme)
     outFile.close()

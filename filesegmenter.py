@@ -7,17 +7,11 @@ def split_file(file_path, directory, size):
 
     Create the directory if it does not exist.
 
-    Return a list of file paths to these partitions and a string with a "cat"
-    command to glue these partitions back together.'''
+    Return a list of file paths to these partitions.'''
 
     fileNumber = 0
     files_created = []
     file_name = file_path.split('/')[-1]
-    read_me = "The file in this directory has been segmented for convenient" \
-    	" upload and download. To assemble the file, run the following " \
-    	"command on your machine in the directory with all the segments: " \
-    	"\n\ncat * >> {}".format(file_name)
-
 
     # Check that the directory exists by attempting to create it.
     # Creation successful when it doens't exist.
@@ -45,7 +39,7 @@ def split_file(file_path, directory, size):
             outFile.close()
             files_created.append(create_file)
             fileNumber += 1
-    return files_created, read_me
+    return files_created
 
 
 def create_file_path(directory, file_path):
