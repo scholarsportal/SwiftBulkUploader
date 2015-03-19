@@ -176,7 +176,8 @@ def olrc_connect():
 
 def is_uploaded(source_file, target_file):
     '''Return True if String target is already on the server and its etag
-    matches the md5 of the source_file'''
+    matches the md5 of the source_file. Delete the file from the server if the
+    md5 does not match.'''
 
     # Swift stat on filename.
     try:
@@ -193,8 +194,21 @@ def is_uploaded(source_file, target_file):
             return False
 
         md5 = checksum_md5(source_file)
+        match = etag == md5
 
-        return etag == md5
+        # Delete the file if the md5 does not match.
+        if not match:
+            try:
+                swiftclient.client.delete_object(
+                    STORAGE_URL,
+                    AUTH_TOKEN,
+                    CONTAINER,
+                    target_file
+                )
+            except:
+                pass
+
+        return match
     except:
         return False
 
