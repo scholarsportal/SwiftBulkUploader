@@ -60,7 +60,7 @@ def olrc_upload(files, target_directory):
         )
 
         # Check file not already online.
-        if not is_uploaded(target_file):
+        if not is_uploaded(source_file, target_file):
 
             # Upload files less than 1GB
             if os.stat(source_file).st_size < FILE_LIMIT:
@@ -110,7 +110,7 @@ def olrc_upload_segments(source_file, target_directory):
         sys.stdout.write("\rUploading file {}".format(segment))
 
         # MDCheck
-        if not md5_check(segment, target_file):
+        if not is_uploaded(segment, target_file):
             olrc_upload_file(segment, target_file)
 
     # Create and upload readme file.
@@ -174,27 +174,11 @@ def olrc_connect():
         sys.exit("Connection to OLRC failed. Check credentials.")
 
 
-def is_uploaded(filename):
-    '''Return True if String filename is already on the server. '''
+def is_uploaded(source_file, target_file):
+    '''Return True if String target is already on the server and its etag
+    matches the md5 of the source_file'''
 
     # Swift stat on filename.
-    try:
-        swiftclient.client.head_object(
-            STORAGE_URL,
-            AUTH_TOKEN,
-            CONTAINER,
-            filename
-        )
-        return True
-    except:
-        return False
-
-
-def md5_check(filename, target_file):
-    '''Given a path to a file, and a target_file, check if the file
-    exists and if it does, check it's etag (which should be it's md5). If the
-    file does not exist or the etag does not match, return False.'''
-
     try:
         object_stat = swiftclient.client.head_object(
             STORAGE_URL,
@@ -202,13 +186,17 @@ def md5_check(filename, target_file):
             CONTAINER,
             target_file
         )
-    except:
-        print("failed stat on: {}\n\n".format(target_file))
-        return False
+        try:
+            etag = object_stat['etag']
+        except:
+            # Return if no etag
+            return False
 
-    etag = object_stat["etag"]
-    md5 = checksum_md5(filename)
-    return etag == md5
+        md5 = checksum_md5(source_file)
+
+        return etag == md5
+    except:
+        return False
 
 
 def checksum_md5(filename):
@@ -220,6 +208,7 @@ def checksum_md5(filename):
 
 
 if __name__ == "__main__":
+
     total = len(sys.argv)
     cmd_args = sys.argv
     usage = "Please pass in a few arguments, see example below \n" \
