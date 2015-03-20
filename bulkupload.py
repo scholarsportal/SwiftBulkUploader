@@ -18,6 +18,13 @@ FILE_LIMIT = 0.5*10**9  # Max file size in bytes that a file can be uploaded.
 # Anything larger is segmented
 SEGMENT_SIZE = 100*10**6
 
+REQUIRED_VARIABLES = [
+    'OS_AUTH_URL',
+    'OS_USERNAME',
+    'OS_TENANT_NAME',
+    'OS_PASSWORD'
+]
+
 
 def list_files_rec(source_directory):
     '''
@@ -221,7 +228,39 @@ def checksum_md5(filename):
     return md5.hexdigest()
 
 
+def is_env_vars_set():
+    '''Check all the required environment variables are set. Return false if
+    any of them are undefined.'''
+
+    # SWIFT_AUTH_URL = 'http://142.1.121.240:5000/v2.0/' OS_AUTH_URL
+    # USERNAME = 'gale:gale' OS_TENANT_NAME:OS_USERNAME
+    # PASSWORD = '8BSSYpen'OS_PASSWORD
+    # CONTAINER = 'gale-container'
+    global REQUIRED_VARIABLES
+    for required_variable in REQUIRED_VARIABLES:
+        if not os.environ.get(required_variable):
+            return False
+
+    return True
+
+
+def set_env_vars():
+    '''Set the global variables for swift client assuming they exist in the
+    environment.'''
+
+    return
+
+
 if __name__ == "__main__":
+
+    if not is_env_vars_set():
+        set_env_message = "The following environment variables have not " \
+            "been set:\n"
+        set_env_message += " \n".join(REQUIRED_VARIABLES)
+        set_env_message += "\nPlease set these environment variables to " \
+            "connect to the OLRC."
+        print(set_env_message)
+        exit(0)
 
     total = len(sys.argv)
     cmd_args = sys.argv
