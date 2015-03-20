@@ -7,9 +7,9 @@ import sys
 
 #Settings
 AUTH_VERSION = 2
-SWIFT_AUTH_URL = 'http://142.1.121.240:5000/v2.0/'
-USERNAME = 'gale:gale'
-PASSWORD = '8BSSYpen'
+SWIFT_AUTH_URL = ''
+USERNAME = ''
+PASSWORD = ''
 CONTAINER = 'gale-container'
 AUTH_TOKEN = ''
 STORAGE_URL = ''
@@ -232,10 +232,6 @@ def is_env_vars_set():
     '''Check all the required environment variables are set. Return false if
     any of them are undefined.'''
 
-    # SWIFT_AUTH_URL = 'http://142.1.121.240:5000/v2.0/' OS_AUTH_URL
-    # USERNAME = 'gale:gale' OS_TENANT_NAME:OS_USERNAME
-    # PASSWORD = '8BSSYpen'OS_PASSWORD
-    # CONTAINER = 'gale-container'
     global REQUIRED_VARIABLES
     for required_variable in REQUIRED_VARIABLES:
         if not os.environ.get(required_variable):
@@ -247,6 +243,16 @@ def is_env_vars_set():
 def set_env_vars():
     '''Set the global variables for swift client assuming they exist in the
     environment.'''
+
+    global SWIFT_AUTH_URL
+    SWIFT_AUTH_URL = os.environ.get("OS_AUTH_URL")
+
+    global USERNAME
+    USERNAME = os.environ.get("OS_TENANT_NAME") + \
+        ":" + os.environ.get("OS_USERNAME")
+
+    global PASSWORD
+    PASSWORD = os.environ.get("OS_PASSWORD")
 
     return
 
@@ -261,6 +267,8 @@ if __name__ == "__main__":
             "connect to the OLRC."
         print(set_env_message)
         exit(0)
+    else:
+        set_env_vars()
 
     total = len(sys.argv)
     cmd_args = sys.argv
