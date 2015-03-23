@@ -10,7 +10,7 @@ AUTH_VERSION = 2
 SWIFT_AUTH_URL = ''
 USERNAME = ''
 PASSWORD = ''
-CONTAINER = 'gale-container'
+CONTAINER = ''
 AUTH_TOKEN = ''
 STORAGE_URL = ''
 TEMP_DIRECTORY = 'temp'
@@ -273,18 +273,19 @@ if __name__ == "__main__":
     total = len(sys.argv)
     cmd_args = sys.argv
     usage = "Please pass in a few arguments, see example below \n" \
-        "python bulk-upload.py source_directory target_directory\n" \
+        "python bulkupload.py container-name source_directory target_directory\n" \
         "where source_directory is the directory to be uploaded and " \
         "target_directory is the directory where files and directories in " \
         "source_directory will be stored."
 
     # Do not execute if no directory provided.
-    if total != 3:
+    if total != 4:
         print(usage)
         exit(0)
 
-    source_directory = cmd_args[1]
-    target_directory = cmd_args[2]
+    CONTAINER = cmd_args[1]
+    source_directory = cmd_args[2]
+    target_directory = cmd_args[3]
 
     # Get all files in the target.
 
