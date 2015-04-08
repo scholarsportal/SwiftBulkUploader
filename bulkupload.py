@@ -145,6 +145,8 @@ def olrc_upload_file(source_file, target_file):
         print("Error opening: " + source_file)
         return False
     try:
+
+        sys.stdout.write("\rUploading file {0}".format(source_file))
         swiftclient.client.put_object(
             STORAGE_URL,
             AUTH_TOKEN,
