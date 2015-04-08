@@ -42,7 +42,7 @@ def list_files_rec(source_directory):
             files.append(file_path)
         else:
             sys.stdout.flush()
-            sys.stdout.write("\rSearching directory {}".format(file_path))
+            sys.stdout.write("\rSearching directory {0}".format(file_path))
             files.extend(list_files_rec(file_path))
 
     return files
@@ -88,10 +88,10 @@ def olrc_upload(files, target_directory):
             count += 1
 
         sys.stdout.flush()
-        sys.stdout.write("\rUploaded {}/{} files ...".format(count, total))
+        sys.stdout.write("\rUploaded {0}/{1} files ...".format(count, total))
 
     sys.stdout.flush()
-    sys.stdout.write("\rUploaded {}/{} files.\n".format(count, total))
+    sys.stdout.write("\rUploaded {0}/{1} files.\n".format(count, total))
 
 
 def olrc_upload_segments(source_file, target_directory):
@@ -105,7 +105,7 @@ def olrc_upload_segments(source_file, target_directory):
     )
 
     sys.stdout.flush()
-    sys.stdout.write("\rPartitioning file {}".format(source_file))
+    sys.stdout.write("\rPartitioning file {0}".format(source_file))
 
     for segment in segments:
 
@@ -114,7 +114,7 @@ def olrc_upload_segments(source_file, target_directory):
         # target_file.
         target_file = os.path.join(target_directory, segment.split('/', 1)[1])
         sys.stdout.flush()
-        sys.stdout.write("\rUploading file {}".format(segment))
+        sys.stdout.write("\rUploading file {0}".format(segment))
 
         # MDCheck
         if not is_uploaded(segment, target_file):
@@ -125,7 +125,7 @@ def olrc_upload_segments(source_file, target_directory):
     readme = "The file in this directory has been segmented for convenient" \
         " upload and download. To assemble the file, run the following " \
         "command on your machine in the directory with all the segments: " \
-        "\n\ncat * >> {}".format(source_file.split('/')[-1])
+        "\n\ncat * >> {0}".format(source_file.split('/')[-1])
     outFile = open("temp/readme.txt", "wt")
     outFile.write(readme)
     outFile.close()
