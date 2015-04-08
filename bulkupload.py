@@ -28,8 +28,8 @@ REQUIRED_VARIABLES = [
 
 def list_files_rec(source_directory):
     '''
-        Given the String target_directory, list all files in the directory
-        and all files in it's subdirectories.
+        Given the String target_directory, return a list of
+        all files in the directory and all files in it's subdirectories.
     '''
     files = []
 
@@ -56,7 +56,6 @@ def olrc_upload(files, target_directory):
     olrc_connect()
     count = 0
     total = len(files)
-    print('Uploading files ...')
     for source_file in files:
 
         # Prepend target directory to files and remove the source_directory
@@ -87,11 +86,6 @@ def olrc_upload(files, target_directory):
         else:
             count += 1
 
-        sys.stdout.flush()
-        sys.stdout.write("\rUploaded {0}/{1} files ...".format(count, total))
-
-    sys.stdout.flush()
-    sys.stdout.write("\rUploaded {0}/{1} files.\n".format(count, total))
 
 
 def olrc_upload_segments(source_file, target_directory):
@@ -256,6 +250,24 @@ def set_env_vars():
 
     return
 
+def upload_drive(source_directory, target_directory):
+    '''
+    Given a source directory, loop through it and upload all it's contents
+    to the target_directory.
+    '''
+
+    for filename in os.listdir(source_directory):
+
+        file_path = os.path.join(source_directory, filename)
+
+        # Add file name to the list.
+        if os.path.isfile(file_path):
+            olrc_upload([file_path], target_directory)
+        else:
+            upload_drive(file_path, target_directory)
+
+
+
 
 if __name__ == "__main__":
 
@@ -273,7 +285,8 @@ if __name__ == "__main__":
     total = len(sys.argv)
     cmd_args = sys.argv
     usage = "Please pass in a few arguments, see example below \n" \
-        "python bulkupload.py container-name source_directory target_directory\n" \
+        "python bulkupload.py container-name source_directory " \
+        "target_directory\n" \
         "where source_directory is the directory to be uploaded and " \
         "target_directory is the directory where files and directories in " \
         "source_directory will be stored."
@@ -287,10 +300,5 @@ if __name__ == "__main__":
     source_directory = cmd_args[2]
     target_directory = cmd_args[3]
 
-    # Get all files in the target.
-
-    print('Searching files ...')
-    files = list_files_rec(source_directory)
-
-    # Upload all files to the OLRC
-    olrc_upload(files, target_directory)
+    #Upload files without searching first.
+    upload_drive(source_directory, target_directory)
