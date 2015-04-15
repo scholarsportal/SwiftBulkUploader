@@ -78,7 +78,7 @@ def olrc_upload(files, target_directory):
                 else:
                     FAILED_COUNT += 1
                     error_log = open('error.log', 'a')
-                    error_log.write("Failed: {0}\n".format(source_file))
+                    error_log.write("\rFailed: {0}\n".format(source_file))
                     error_log.close()
 
             # Partition files if they are greater than 1GB before uploading
@@ -89,13 +89,13 @@ def olrc_upload(files, target_directory):
                 else:
                     FAILED_COUNT += 1
                     error_log = open('error.log', 'a')
-                    error_log.write("Failed: {0}\n".format(source_file))
+                    error_log.write("\rFailed: {0}\n".format(source_file))
                     error_log.close()
 
         else:
             sys.stdout.flush()
             sys.stdout.write(
-                "Skipping: {0}, already uploaded.".format(source_file)
+                "\rSkipping: {0}, already uploaded.".format(source_file)
             )
             COUNT += 1
 
@@ -130,7 +130,7 @@ def olrc_upload_segments(source_file, target_directory):
 
             sys.stdout.flush()
             sys.stdout.write(
-                "Skipping: {0}, already uploaded.".format(source_file)
+                "\rSkipping: {0}, already uploaded.".format(source_file)
             )
 
     # Create and upload readme file.
