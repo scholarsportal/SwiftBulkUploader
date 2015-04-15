@@ -93,6 +93,10 @@ def olrc_upload(files, target_directory):
                     error_log.close()
 
         else:
+            sys.stdout.flush()
+            sys.stdout.write(
+                "Skipping: {0}, already uploaded.".format(source_file)
+            )
             COUNT += 1
 
 
@@ -122,6 +126,12 @@ def olrc_upload_segments(source_file, target_directory):
         if not is_uploaded(segment, target_file):
             if not olrc_upload_file(segment, target_file):
                 return False
+        else:
+
+            sys.stdout.flush()
+            sys.stdout.write(
+                "Skipping: {0}, already uploaded.".format(source_file)
+            )
 
     # Create and upload readme file.
 
@@ -147,7 +157,6 @@ def olrc_upload_segments(source_file, target_directory):
 def olrc_upload_file(source_file, target_file):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
-
 
     try:
         opened_source_file = open(source_file, 'r')
