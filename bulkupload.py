@@ -18,6 +18,8 @@ TEMP_DIRECTORY = 'temp'
 FILE_LIMIT = 0.5*10**9  # Max file size in bytes that a file can be uploaded.
 # Anything larger is segmented
 SEGMENT_SIZE = 100*10**6
+COUNT = 0
+FAILED_COUNT = 0
 
 REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
@@ -55,7 +57,7 @@ def olrc_upload(files, target_directory):
 
     # Check connection to OLRC.
     olrc_connect()
-    count = 0
+    global COUNT, FAILED_COUNT
     total = len(files)
     for source_file in files:
 
@@ -72,20 +74,26 @@ def olrc_upload(files, target_directory):
             # Upload files less than 1GB
             if os.stat(source_file).st_size < FILE_LIMIT:
                 if (olrc_upload_file(source_file, target_file)):
-                    count += 1
+                    COUNT += 1
                 else:
-                    print('Issue uploading: ' + source_file)
+                    FAILED_COUNT += 1
+                    error_log = open('error.log', 'a')
+                    error_log.write("Failed: {0}\n".format(source_file))
+                    error_log.close()
 
             # Partition files if they are greater than 1GB before uploading
             else:
 
                 if (olrc_upload_segments(source_file, target_file)):
-                    count += 1
+                    COUNT += 1
                 else:
-                    print('Issue uploading: ' + source_file)
+                    FAILED_COUNT += 1
+                    error_log = open('error.log', 'a')
+                    error_log.write("Failed: {0}\n".format(source_file))
+                    error_log.close()
 
         else:
-            count += 1
+            COUNT += 1
 
 
 def olrc_upload_segments(source_file, target_directory):
@@ -112,7 +120,8 @@ def olrc_upload_segments(source_file, target_directory):
 
         # MDCheck
         if not is_uploaded(segment, target_file):
-            olrc_upload_file(segment, target_file)
+            if not olrc_upload_file(segment, target_file):
+                return False
 
     # Create and upload readme file.
 
@@ -139,13 +148,14 @@ def olrc_upload_file(source_file, target_file):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
 
+
     try:
         opened_source_file = open(source_file, 'r')
     except IOError:
         print("Error opening: " + source_file)
         return False
     try:
-
+        sys.stdout.flush()
         sys.stdout.write("\rUploading file {0}".format(source_file))
         swiftclient.client.put_object(
             STORAGE_URL,
@@ -155,10 +165,6 @@ def olrc_upload_file(source_file, target_file):
             opened_source_file)
     except swiftclient.ClientException, e:
 
-        error_log = open('error.log', 'a')
-        error_log.write("Failed: {0}\n".format(source_file))
-        error_log.close()
-        print(e.msg)
         return False
 
     return True
@@ -262,6 +268,7 @@ def upload_drive(source_directory, target_directory):
     Given a source directory, loop through it and upload all it's contents
     to the target_directory.
     '''
+    global COUNT, FAILED_COUNT
 
     for filename in os.listdir(source_directory):
 
@@ -272,7 +279,6 @@ def upload_drive(source_directory, target_directory):
             olrc_upload([file_path], target_directory)
         else:
             upload_drive(file_path, target_directory)
-
 
 if __name__ == "__main__":
 
@@ -310,6 +316,23 @@ if __name__ == "__main__":
     error_log.write("From execution {0}:\n".format(
         str(datetime.datetime.now())
     ))
+    error_log.close()
 
     #Upload files without searching first.
     upload_drive(source_directory, target_directory)
+
+    #Save report in file.
+    report_log = open('report.log', 'w+')
+    report_log.write("From execution {0}:\n".format(
+        str(datetime.datetime.now())
+    ))
+    report = "\nTotal uploaded: {0}\nTotal failed uploaded: {1}\n" \
+        "Failed uploads stored in error.log\n" \
+        "Reported saved in report.log.\n" \
+        .format(COUNT, FAILED_COUNT)
+    report_log.write(report)
+    report_log.close()
+
+    #Output report to user
+    sys.stdout.flush()
+    sys.stdout.write(report)
