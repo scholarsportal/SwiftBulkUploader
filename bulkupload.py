@@ -4,6 +4,7 @@ import os
 import shutil
 import swiftclient
 import sys
+import datetime
 
 #Settings
 AUTH_VERSION = 2
@@ -87,7 +88,6 @@ def olrc_upload(files, target_directory):
             count += 1
 
 
-
 def olrc_upload_segments(source_file, target_directory):
     ''' Break up the source_file into segments and upload them into
     target_directory'''
@@ -154,6 +154,10 @@ def olrc_upload_file(source_file, target_file):
             target_file,
             opened_source_file)
     except swiftclient.ClientException, e:
+
+        error_log = open('error.log', 'a')
+        error_log.write("Failed: {0}\n".format(source_file))
+        error_log.close()
         print(e.msg)
         return False
 
@@ -252,6 +256,7 @@ def set_env_vars():
 
     return
 
+
 def upload_drive(source_directory, target_directory):
     '''
     Given a source directory, loop through it and upload all it's contents
@@ -267,8 +272,6 @@ def upload_drive(source_directory, target_directory):
             olrc_upload([file_path], target_directory)
         else:
             upload_drive(file_path, target_directory)
-
-
 
 
 if __name__ == "__main__":
@@ -301,6 +304,12 @@ if __name__ == "__main__":
     CONTAINER = cmd_args[1]
     source_directory = cmd_args[2]
     target_directory = cmd_args[3]
+
+    #Open error log:
+    error_log = open('error.log', 'w+')
+    error_log.write("From execution {0}:\n".format(
+        str(datetime.datetime.now())
+    ))
 
     #Upload files without searching first.
     upload_drive(source_directory, target_directory)
