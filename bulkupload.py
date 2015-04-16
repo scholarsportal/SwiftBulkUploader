@@ -5,6 +5,7 @@ import shutil
 import swiftclient
 import sys
 import datetime
+import socket
 
 #Settings
 AUTH_VERSION = 2
@@ -173,8 +174,18 @@ def olrc_upload_file(source_file, target_file):
             target_file,
             opened_source_file)
     except swiftclient.ClientException, e:
-
         return False
+
+    except:
+        sys.stdout.flush()
+        sys.stdout.write("\rError!\n".format(source_file))
+        user_input = raw_input(
+            "Please enter anything to continue. Type 'stop' to stop."
+        )
+        if (user_input == 'stop'):
+            sys.exit("Exiting.")
+        else:
+            olrc_upload_file(source_file, target_file)
 
     return True
 
