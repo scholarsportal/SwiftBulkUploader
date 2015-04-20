@@ -53,7 +53,7 @@ class DatabaseConnection(object):
         try:
             self.cursor.execute(query)
         except MySQLdb.Error, e:
-            sys.exit("ERROR {} IN TABLE CREATION: {}".format(
+            sys.exit("ERROR {0} IN TABLE CREATION: {1}".format(
                 e.args[0],
                 e.args[1]
             ))
