@@ -6,6 +6,7 @@ import swiftclient
 import sys
 import datetime
 import socket
+import olrcdb
 
 #Settings
 AUTH_VERSION = 2
@@ -30,75 +31,26 @@ REQUIRED_VARIABLES = [
 ]
 
 
-def list_files_rec(source_directory):
-    '''
-        Given the String target_directory, return a list of
-        all files in the directory and all files in it's subdirectories.
-    '''
-    files = []
-
-    for filename in os.listdir(source_directory):
-
-        file_path = os.path.join(source_directory, filename)
-
-        # Add file name to the list.
-        if os.path.isfile(file_path):
-            files.append(file_path)
-        else:
-            sys.stdout.flush()
-            sys.stdout.write("\rSearching directory {0}".format(file_path))
-            files.extend(list_files_rec(file_path))
-
-    return files
-
-
-def olrc_upload(files, target_directory):
-    ''' Given an array of pathnames, upload these to the olrc under
-    target_directory. '''
+def olrc_upload(path):
+    ''' Given a path, upload it to the OLRC. '''
 
     # Check connection to OLRC.
     olrc_connect()
     global COUNT, FAILED_COUNT
-    total = len(files)
-    for source_file in files:
 
-        # Prepend target directory to files and remove the source_directory
-        # which is the first part of souce_file.
-        target_file = os.path.join(
-            target_directory,
-            source_file.split('/', 1)[1]
-        )
+    # Check file not already online.
+    if not is_uploaded(path):
 
-        # Check file not already online.
-        if not is_uploaded(source_file, target_file):
-
-            # Upload files less than 1GB
-            if os.stat(source_file).st_size < FILE_LIMIT:
-                if (olrc_upload_file(source_file, target_file)):
-                    COUNT += 1
-                else:
-                    FAILED_COUNT += 1
-                    error_log = open('error.log', 'a')
-                    error_log.write("\rFailed: {0}\n".format(source_file))
-                    error_log.close()
-
-            # Partition files if they are greater than 1GB before uploading
-            else:
-
-                if (olrc_upload_segments(source_file, target_file)):
-                    COUNT += 1
-                else:
-                    FAILED_COUNT += 1
-                    error_log = open('error.log', 'a')
-                    error_log.write("\rFailed: {0}\n".format(source_file))
-                    error_log.close()
-
-        else:
-            sys.stdout.flush()
-            sys.stdout.write(
-                "\rSkipping: {0}, already uploaded.".format(source_file)
-            )
+        if (olrc_upload_file(path)):
             COUNT += 1
+        else:
+            FAILED_COUNT += 1
+            error_log = open('error.log', 'a')
+            error_log.write("\rFailed: {0}\n".format(source_file))
+            error_log.close()
+
+    else:
+        COUNT += 1
 
 
 def olrc_upload_segments(source_file, target_directory):
@@ -155,37 +107,35 @@ def olrc_upload_segments(source_file, target_directory):
     return True
 
 
-def olrc_upload_file(source_file, target_file):
+def olrc_upload_file(path):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
 
     try:
-        opened_source_file = open(source_file, 'r')
+        opened_source_file = open(path, 'r')
     except IOError:
-        print("Error opening: " + source_file)
+        print("Error opening: " + path)
         return False
     try:
-        sys.stdout.flush()
-        sys.stdout.write("\rUploading file {0}".format(source_file))
         swiftclient.client.put_object(
             STORAGE_URL,
             AUTH_TOKEN,
             CONTAINER,
-            target_file,
+            path,
             opened_source_file)
     except swiftclient.ClientException, e:
         return False
 
     except:
         sys.stdout.flush()
-        sys.stdout.write("\rError!\n".format(source_file))
+        sys.stdout.write("\rError!\n")
         user_input = raw_input(
             "Please enter anything to continue. Type 'stop' to stop."
         )
         if (user_input == 'stop'):
             sys.exit("Exiting.")
         else:
-            olrc_upload_file(source_file, target_file)
+            olrc_upload_file(path)
 
     return True
 
@@ -207,9 +157,9 @@ def olrc_connect():
         sys.exit("Connection to OLRC failed. Check credentials.")
 
 
-def is_uploaded(source_file, target_file):
-    '''Return True if String target is already on the server and its etag
-    matches the md5 of the source_file. Delete the file from the server if the
+def is_uploaded(file_name):
+    '''Return True if String file is already on the server and its etag
+    matches it's md5. Delete the file from the server if the
     md5 does not match.'''
 
     # Swift stat on filename.
@@ -218,7 +168,7 @@ def is_uploaded(source_file, target_file):
             STORAGE_URL,
             AUTH_TOKEN,
             CONTAINER,
-            target_file
+            file_name
         )
         try:
             etag = object_stat['etag']
@@ -226,7 +176,7 @@ def is_uploaded(source_file, target_file):
             # Return if no etag
             return False
 
-        md5 = checksum_md5(source_file)
+        md5 = checksum_md5(file_name)
         match = etag == md5
 
         # Delete the file if the md5 does not match.
@@ -236,7 +186,7 @@ def is_uploaded(source_file, target_file):
                     STORAGE_URL,
                     AUTH_TOKEN,
                     CONTAINER,
-                    target_file
+                    file_name
                 )
             except:
                 pass
@@ -283,22 +233,61 @@ def set_env_vars():
     return
 
 
-def upload_drive(source_directory, target_directory):
+def upload_table(table_name):
     '''
-    Given a source directory, loop through it and upload all it's contents
-    to the target_directory.
+    Given a table_name, upload all the paths from the table.
     '''
     global COUNT, FAILED_COUNT
 
-    for filename in os.listdir(source_directory):
+    query = "SELECT * FROM {0} WHERE uploaded=0".format(table_name)
 
-        file_path = os.path.join(source_directory, filename)
+    connect = olrcdb.DatabaseConnection()
+    result = connect.execute_query(query)
+    path_tuple = result.fetchone()
 
-        # Add file name to the list.
-        if os.path.isfile(file_path):
-            olrc_upload([file_path], target_directory)
-        else:
-            upload_drive(file_path, target_directory)
+    total_to_upload = get_total_to_upload(table_name)
+
+    sys.stdout.flush()
+    sys.stdout.write("\r{0}% Uploaded. ".format(
+        float(COUNT) / float(total_to_upload))
+    )
+
+    while (path_tuple):
+        olrc_upload(path_tuple[0])
+        set_uploaded(path_tuple[0], table_name)
+
+        percentage_uploaded = format(
+            (float(COUNT) / float(total_to_upload)) * 100,
+            '.2f'
+        )
+
+        sys.stdout.flush()
+        sys.stdout.write("\r{0}% Uploaded. ".format(percentage_uploaded))
+
+        path_tuple = result.fetchone()
+
+
+def get_total_to_upload(table_name):
+    '''Given a table_name, get the total number of rows where upload is 0.'''
+
+    query = "SELECT COUNT(path) FROM {} WHERE uploaded=0".format(table_name)
+
+    connect = olrcdb.DatabaseConnection()
+    result = connect.execute_query(query)
+    result_tuple = result.fetchone()
+    return result_tuple[0]
+
+
+def set_uploaded(path, table_name):
+    '''For the given path, set uploaded to 1 in table_name.'''
+    query = "UPDATE {0} set uploaded='1' WHERE path='{1}'".format(
+        table_name,
+        path
+    )
+
+    connect = olrcdb.DatabaseConnection()
+    connect.execute_query(query)
+
 
 if __name__ == "__main__":
 
@@ -316,20 +305,16 @@ if __name__ == "__main__":
     total = len(sys.argv)
     cmd_args = sys.argv
     usage = "Please pass in a few arguments, see example below \n" \
-        "python bulkupload.py container-name source_directory " \
-        "target_directory\n" \
-        "where source_directory is the directory to be uploaded and " \
-        "target_directory is the directory where files and directories in " \
-        "source_directory will be stored."
+        "python bulkupload.py container-name mysql-table " \
+        "where mysql-table is table created from prepareupload.py. " \
 
     # Do not execute if no directory provided.
-    if total != 4:
+    if total != 3:
         print(usage)
         exit(0)
 
     CONTAINER = cmd_args[1]
-    source_directory = cmd_args[2]
-    target_directory = cmd_args[3]
+    table_name = cmd_args[2]
 
     #Open error log:
     error_log = open('error.log', 'w+')
@@ -338,8 +323,8 @@ if __name__ == "__main__":
     ))
     error_log.close()
 
-    #Upload files without searching first.
-    upload_drive(source_directory, target_directory)
+    #Upload files from table.
+    upload_table(table_name)
 
     #Save report in file.
     report_log = open('report.log', 'w+')
