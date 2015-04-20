@@ -154,7 +154,17 @@ def olrc_connect():
         STORAGE_URL = connection_storage_url
     except swiftclient.client.ClientException, e:
         print(e)
-        sys.exit("Connection to OLRC failed. Check credentials.")
+        sys.stdout.flush()
+        sys.stdout.write(
+            "\rError! Connection to OLRC failed. Check credentials.\n"
+        )
+        user_input = raw_input(
+            "Please enter anything to continue. Type 'stop' to stop."
+        )
+        if (user_input == 'stop'):
+            sys.exit("Exiting.")
+        else:
+            olrc_connect()
 
 
 def is_uploaded(file_name):
