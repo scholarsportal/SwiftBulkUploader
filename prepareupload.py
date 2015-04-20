@@ -27,7 +27,7 @@ def prepare_upload(connect, directory, table_name):
     -populate the table with (path, uploaded=false)
     where each path is a file in the given directory.'''
 
-    # Create table
+    global COUNT
 
     for filename in os.listdir(directory):
 
@@ -35,9 +35,10 @@ def prepare_upload(connect, directory, table_name):
 
         # Add file name to the list.
         if os.path.isfile(file_path):
-            connect.insert_path(table_name, file_path)
+            connect.insert_path(file_path, table_name)
+            COUNT += 1
         else:
-            prepare_upload(connect, directory, table_name)
+            prepare_upload(connect, file_path, table_name)
 
 
 if __name__ == "__main__":

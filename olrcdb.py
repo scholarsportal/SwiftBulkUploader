@@ -23,10 +23,13 @@ class DatabaseConnection(object):
                      " are set:\n$MYSQL_HOST\n$MYSQL_DB\n$MYSQL_USER\n"
                      "$MYSQL_PASSWD\n")
         except MySQLdb.Error, e:
-            sys.exit("ERROR {0} IN CONNECTION: {1}".format(e.args[0], e.args[1]))
+            sys.exit("ERROR {0} IN CONNECTION: {1}".format(
+                e.args[0], e.args[1]
+            ))
 
     def get_cursor(self):
         '''Return a cursor for the database.'''
+
         return self.cursor
 
     def create_table(self, table_name):
@@ -62,10 +65,13 @@ class DatabaseConnection(object):
             table_name,
             path
         )
+
         try:
             self.cursor.execute(query)
+            self.db.commit()
         except MySQLdb.Error, e:
-            sys.exit("ERROR {0} IN INSERT: {q}".format(
+            sys.exit("ERROR {0} IN INSERT: {1}\nQuery:{2}".format(
                 e.args[0],
-                e.args[1]
+                e.args[1],
+                query
             ))
