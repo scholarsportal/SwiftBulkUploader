@@ -37,6 +37,9 @@ def prepare_upload(connect, directory, table_name):
         if os.path.isfile(file_path):
             connect.insert_path(file_path, table_name)
             COUNT += 1
+
+            sys.stdout.flush()
+            sys.stdout.write("\r{0} parsed. \n".format(COUNT))
         else:
             prepare_upload(connect, file_path, table_name)
 
