@@ -32,7 +32,8 @@ REQUIRED_VARIABLES = [
 
 
 def olrc_upload(path):
-    ''' Given a path, upload it to the OLRC. '''
+    ''' Given a path, upload it to the OLRC. Return False if upload
+    unsuccessful.'''
 
     # Check connection to OLRC.
     olrc_connect()
@@ -46,11 +47,16 @@ def olrc_upload(path):
         else:
             FAILED_COUNT += 1
             error_log = open('error.log', 'a')
-            error_log.write("\rFailed: {0}\n".format(source_file))
+            error_log.write("\rFailed: {0}\n".format(path))
             error_log.close()
+            return False
 
     else:
+        sys.stdout.flush()
+        sys.stdout.write("\rSkipping file {0}".format(path))
         COUNT += 1
+
+    return True
 
 
 def olrc_upload_segments(source_file, target_directory):
@@ -123,12 +129,10 @@ def olrc_upload_file(path):
             CONTAINER,
             path,
             opened_source_file)
-    except swiftclient.ClientException, e:
-        return False
 
-    except:
+    except Exception, e:
         sys.stdout.flush()
-        sys.stdout.write("\rError!\n")
+        sys.stdout.write("\rError! {0}\n".format(e))
         user_input = raw_input(
             "Please enter anything to continue. Type 'stop' to stop."
         )
@@ -257,14 +261,24 @@ def upload_table(table_name):
 
     total_to_upload = get_total_to_upload(table_name)
 
+    if total_to_upload == 0:
+
+        sys.stdout.flush()
+        sys.stdout.write(
+            "\rNo files to upload. {0} return 0 files to uploaded.\n".format(
+                table_name)
+        )
+        exit(0)
+
+
     sys.stdout.flush()
     sys.stdout.write("\r{0}% Uploaded. ".format(
         float(COUNT) / float(total_to_upload))
     )
 
     while (path_tuple):
-        olrc_upload(path_tuple[0])
-        set_uploaded(path_tuple[0], table_name)
+        if olrc_upload(path_tuple[0]):
+            set_uploaded(path_tuple[0], table_name)
 
         percentage_uploaded = format(
             (float(COUNT) / float(total_to_upload)) * 100,
@@ -301,6 +315,7 @@ def set_uploaded(path, table_name):
 
 if __name__ == "__main__":
 
+    # Check environment variables
     if not is_env_vars_set():
         set_env_message = "The following environment variables have not " \
             "been set:\n"
