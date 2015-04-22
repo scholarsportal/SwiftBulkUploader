@@ -35,19 +35,13 @@ class DatabaseConnection(object):
     def create_table(self, table_name):
         '''Given a table_name, create a table in the database.
 
-        Schema for the table will be:
-        CREATE TABLE MyGuests (
-            id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            firstname VARCHAR(30) NOT NULL,
-            lastname VARCHAR(30) NOT NULL,
-            email VARCHAR(50),
-            reg_date TIMESTAMP
-            )
         '''
 
         query = "CREATE TABLE {0} ( \
+            `id` INTEGER  NOT NULL AUTO_INCREMENT,\
             path VARCHAR(1000),\
-            uploaded BOOL DEFAULT '0'\
+            uploaded BOOL DEFAULT '0',\
+            INDEX `path_index` (`id`)\
             )".format(table_name)
 
         try:

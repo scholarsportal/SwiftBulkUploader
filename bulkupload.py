@@ -277,7 +277,7 @@ def upload_table(table_name):
     )
 
     while (path_tuple):
-        if olrc_upload(path_tuple[0]):
+        if olrc_upload(path_tuple[1]):
             set_uploaded(path_tuple[0], table_name)
 
         percentage_uploaded = format(
@@ -302,11 +302,11 @@ def get_total_to_upload(table_name):
     return result_tuple[0]
 
 
-def set_uploaded(path, table_name):
+def set_uploaded(id, table_name):
     '''For the given path, set uploaded to 1 in table_name.'''
-    query = "UPDATE {0} set uploaded='1' WHERE path='{1}'".format(
+    query = "UPDATE {0} set uploaded='1' WHERE id='{1}'".format(
         table_name,
-        path
+        id
     )
 
     connect = olrcdb.DatabaseConnection()
