@@ -260,19 +260,11 @@ def upload_table(table_name):
     path_tuple = result.fetchone()
 
     total_to_upload = get_total_to_upload(table_name)
-
-    if total_to_upload == 0:
-
-        sys.stdout.flush()
-        sys.stdout.write(
-            "\rNo files to upload. {0} return 0 files to uploaded.\n".format(
-                table_name)
-        )
-        exit(0)
+    COUNT = get_total_uploaded(table_name)
 
     sys.stdout.flush()
     sys.stdout.write("\r{0}% Uploaded. ".format(
-        float(COUNT) / float(total_to_upload))
+        float(COUNT) / float(total_to_upload) * 100)
     )
 
     while (path_tuple):
@@ -291,9 +283,20 @@ def upload_table(table_name):
 
 
 def get_total_to_upload(table_name):
-    '''Given a table_name, get the total number of rows where upload is 0.'''
+    '''Given a table_name, get the total number of rows'''
 
     query = "SELECT COUNT(*) FROM {0}".format(table_name)
+
+    connect = olrcdb.DatabaseConnection()
+    result = connect.execute_query(query)
+    result_tuple = result.fetchone()
+    return result_tuple[0]
+
+
+def get_total_uploaded(table_name):
+    '''Given a table_name, get the total number of rows where upload is 1.'''
+
+    query = "SELECT COUNT(*) FROM {0} WHERE uploaded=1".format(table_name)
 
     connect = olrcdb.DatabaseConnection()
     result = connect.execute_query(query)
