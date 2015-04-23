@@ -270,7 +270,6 @@ def upload_table(table_name):
         )
         exit(0)
 
-
     sys.stdout.flush()
     sys.stdout.write("\r{0}% Uploaded. ".format(
         float(COUNT) / float(total_to_upload))
@@ -294,7 +293,7 @@ def upload_table(table_name):
 def get_total_to_upload(table_name):
     '''Given a table_name, get the total number of rows where upload is 0.'''
 
-    query = "SELECT COUNT(path) FROM {0} WHERE uploaded=0".format(table_name)
+    query = "SELECT COUNT(*) FROM {0}".format(table_name)
 
     connect = olrcdb.DatabaseConnection()
     result = connect.execute_query(query)
