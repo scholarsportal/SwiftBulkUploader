@@ -330,8 +330,8 @@ def check_env_args():
     '''Do checks on the environment and args.'''
     # Check environment variables
     if not is_env_vars_set():
-        set_env_message = "The following environment variables have not " \
-            "been set:\n"
+        set_env_message = "The following environment variables need to be " \
+            "set:\n"
         set_env_message += " \n".join(REQUIRED_VARIABLES)
         set_env_message += "\nPlease set these environment variables to " \
             "connect to the OLRC."
@@ -390,7 +390,7 @@ def print_status(counter, lock):
     lock.acquire()
     percentage_uploaded = format(
         (float(counter.value) / float(TOTAL)) * 100,
-        '.2f'
+        '.8f'
     )
     lock.release()
 
