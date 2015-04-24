@@ -7,6 +7,8 @@ import sys
 import datetime
 import socket
 import olrcdb
+from multiprocessing import Process, Lock, Value
+
 
 #Settings
 AUTH_VERSION = 2
@@ -21,13 +23,20 @@ FILE_LIMIT = 0.5*10**9  # Max file size in bytes that a file can be uploaded.
 # Anything larger is segmented
 SEGMENT_SIZE = 100*10**6
 COUNT = 0
+TOTAL = 0
 FAILED_COUNT = 0
+LIMIT = 2
+RANGE = 0  # protected variable
 
 REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
     'OS_USERNAME',
     'OS_TENANT_NAME',
-    'OS_PASSWORD'
+    'OS_PASSWORD',
+    "MYSQL_HOST",
+    "MYSQL_USER",
+    "MYSQL_PASSWD",
+    "MYSQL_DB"
 ]
 
 
@@ -37,24 +46,17 @@ def olrc_upload(path):
 
     # Check connection to OLRC.
     olrc_connect()
-    global COUNT, FAILED_COUNT
+    global FAILED_COUNT
 
     # Check file not already online.
     if not is_uploaded(path):
 
-        if (olrc_upload_file(path)):
-            COUNT += 1
-        else:
+        if not (olrc_upload_file(path)):
             FAILED_COUNT += 1
             error_log = open('error.log', 'a')
             error_log.write("\rFailed: {0}\n".format(path))
             error_log.close()
             return False
-
-    else:
-        sys.stdout.flush()
-        sys.stdout.write("\rSkipping file {0}".format(path))
-        COUNT += 1
 
     return True
 
@@ -247,39 +249,48 @@ def set_env_vars():
     return
 
 
-def upload_table(table_name):
+def upload_table(lock, range, table_name, counter):
     '''
-    Given a table_name, upload all the paths from the table.
+    Given a table_name, upload all the paths from the table where upload is 0.
+    Upload within a LIMIT range at a time.
     '''
-    global COUNT, FAILED_COUNT
+    global FAILED_COUNT, LIMIT, RANGE
 
-    query = "SELECT * FROM {0} WHERE uploaded=0".format(table_name)
+    lock.acquire()
+    while range.value <= TOTAL:
 
-    connect = olrcdb.DatabaseConnection()
-    result = connect.execute_query(query)
-    path_tuple = result.fetchone()
+        # Access protected variable.
+        # We want to make we only fetch within a unique range,
+        # so RANGE is locked.
+            # "grab" a LIMITs with of rows at a time.
+        query = (
+            "SELECT * FROM {0} WHERE uploaded=0"
+            " AND id >= {1} AND id <{2}".format(
+                table_name, range.value, range.value + LIMIT))
+        # Let other processes know this range.value has been accounted for.
+        range.value += LIMIT
+        lock.release()
 
-    total_to_upload = get_total_to_upload(table_name)
-    COUNT = get_total_uploaded(table_name)
-
-    sys.stdout.flush()
-    sys.stdout.write("\r{0}% Uploaded. ".format(
-        float(COUNT) / float(total_to_upload) * 100)
-    )
-
-    while (path_tuple):
-        if olrc_upload(path_tuple[1]):
-            set_uploaded(path_tuple[0], table_name)
-
-        percentage_uploaded = format(
-            (float(COUNT) / float(total_to_upload)) * 100,
-            '.2f'
-        )
-
-        sys.stdout.flush()
-        sys.stdout.write("\r{0}% Uploaded. ".format(percentage_uploaded))
-
+        # Connect to the database and fetch results.
+        connect = olrcdb.DatabaseConnection()
+        result = connect.execute_query(query)
         path_tuple = result.fetchone()
+        # Loop until we run out of rows from the database.
+        while (path_tuple):
+
+            # if the upload is successful, update the database
+            if olrc_upload(path_tuple[1]):
+                lock.acquire()
+                counter.value += 1
+                lock.release()
+                set_uploaded(path_tuple[0], table_name)
+
+            print_status(counter, lock)
+
+            path_tuple = result.fetchone()
+        lock.acquire()
+        #Executes on the last range.
+    lock.release()
 
 
 def get_total_to_upload(table_name):
@@ -315,8 +326,8 @@ def set_uploaded(id, table_name):
     connect.execute_query(query)
 
 
-if __name__ == "__main__":
-
+def check_env_args():
+    '''Do checks on the environment and args.'''
     # Check environment variables
     if not is_env_vars_set():
         set_env_message = "The following environment variables have not " \
@@ -332,16 +343,18 @@ if __name__ == "__main__":
     total = len(sys.argv)
     cmd_args = sys.argv
     usage = "Please pass in a few arguments, see example below \n" \
-        "python bulkupload.py container-name mysql-table " \
-        "where mysql-table is table created from prepareupload.py. " \
+        "python bulkupload.py container-name mysql-table n-processes" \
+        "where mysql-table is table created from prepareupload.py and " \
+        "n-process is the number of processes created to run this script. " \
 
     # Do not execute if no directory provided.
-    if total != 3:
+    if total != 4:
         print(usage)
         exit(0)
 
-    CONTAINER = cmd_args[1]
-    table_name = cmd_args[2]
+
+def start_reporting():
+    '''Do the setup work for reporting.'''
 
     #Open error log:
     error_log = open('error.log', 'w+')
@@ -350,9 +363,9 @@ if __name__ == "__main__":
     ))
     error_log.close()
 
-    #Upload files from table.
-    upload_table(table_name)
 
+def end_reporting(counter):
+    '''Do the wrap uup work for reporting.'''
     #Save report in file.
     report_log = open('report.log', 'w+')
     report_log.write("From execution {0}:\n".format(
@@ -361,10 +374,72 @@ if __name__ == "__main__":
     report = "\nTotal uploaded: {0}\nTotal failed uploaded: {1}\n" \
         "Failed uploads stored in error.log\n" \
         "Reported saved in report.log.\n" \
-        .format(COUNT, FAILED_COUNT)
+        .format(counter.value, FAILED_COUNT)
     report_log.write(report)
     report_log.close()
 
     #Output report to user
     sys.stdout.flush()
     sys.stdout.write(report)
+
+
+def print_status(counter, lock):
+    '''Print the current status of uploaded files.'''
+    global TOTAL
+
+    lock.acquire()
+    percentage_uploaded = format(
+        (float(counter.value) / float(TOTAL)) * 100,
+        '.2f'
+    )
+    lock.release()
+
+    sys.stdout.flush()
+    sys.stdout.write("\r{0}% Uploaded. ".format(percentage_uploaded))
+
+
+def get_min_id(table_name):
+    '''Return the minimum id from table_name where uploaded=0'''
+
+    query = "SELECT MIN(id) FROM {0} WHERE uploaded=0".format(table_name)
+
+    connect = olrcdb.DatabaseConnection()
+    result = connect.execute_query(query)
+    result_tuple = result.fetchone()
+    if not result_tuple[0]:
+        sys.exit("Nothing to upload from table {0}".format(table_name))
+    return int(result_tuple[0])
+
+
+if __name__ == "__main__":
+
+    check_env_args()
+    start_reporting()
+
+    CONTAINER = sys.argv[1]
+    table_name = sys.argv[2]
+    n_processes = sys.argv[3]
+
+    TOTAL = get_total_to_upload(table_name)
+    counter = Value("i", get_total_uploaded(table_name))
+    RANGE = get_min_id(table_name)
+    lock = Lock()
+    id_range = Value("i", get_min_id(table_name))
+    processes = []
+
+    # Limit is the number of rows a process uploads at a time.
+    # Range is the range of ids a process uploads.
+    for process in range(int(n_processes)):
+        p = Process(
+            target=upload_table,
+            args=(
+                lock,
+                id_range,
+                table_name, counter))
+        p.start()
+        processes.append(p)
+
+    #Join all processes
+    for process in processes:
+        process.join()
+    end_reporting(counter)
