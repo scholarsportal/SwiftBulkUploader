@@ -343,7 +343,7 @@ def check_env_args():
     total = len(sys.argv)
     cmd_args = sys.argv
     usage = "Please pass in a few arguments, see example below \n" \
-        "python bulkupload.py container-name mysql-table n-processes" \
+        "python bulkupload.py container-name mysql-table n-processes\n" \
         "where mysql-table is table created from prepareupload.py and " \
         "n-process is the number of processes created to run this script. " \
 
