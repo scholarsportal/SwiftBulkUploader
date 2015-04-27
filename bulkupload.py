@@ -121,6 +121,7 @@ def olrc_upload_file(path):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
 
+    global SLEEP
     try:
         opened_source_file = open(path, 'r')
     except IOError:
@@ -155,6 +156,7 @@ def olrc_connect():
     '''Connect to the OLRC with the global variables. Exit if connection
     fails.'''
 
+    global SLEEP
     try:
         (connection_storage_url, auth_token) = swiftclient.client.get_auth(
             SWIFT_AUTH_URL, USERNAME, PASSWORD,
