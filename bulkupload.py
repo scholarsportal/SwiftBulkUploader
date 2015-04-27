@@ -149,7 +149,9 @@ def olrc_upload_file(path):
         )
         time.sleep(SLEEP)
         SLEEP += SLEEP
-        olrc_upload_file(path)
+        if (SLEEP > 1000):
+            return False
+        return olrc_upload_file(path)
 
     return True
 
