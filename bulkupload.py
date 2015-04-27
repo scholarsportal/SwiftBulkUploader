@@ -28,7 +28,7 @@ TOTAL = 0
 FAILED_COUNT = 0
 LIMIT = 1000
 RANGE = 0  # protected variable
-SLEEP = 100
+SLEEP = 1
 
 REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
@@ -149,7 +149,7 @@ def olrc_upload_file(path):
         )
         time.sleep(SLEEP)
         SLEEP += SLEEP
-        if (SLEEP > 1000):
+        if (SLEEP > 15):
             return False
         return olrc_upload_file(path)
 
