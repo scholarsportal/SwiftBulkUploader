@@ -6,6 +6,7 @@ import swiftclient
 import sys
 import datetime
 import socket
+import time
 import olrcdb
 from multiprocessing import Process, Lock, Value
 
@@ -27,6 +28,7 @@ TOTAL = 0
 FAILED_COUNT = 0
 LIMIT = 1000
 RANGE = 0  # protected variable
+SLEEP = 100
 
 REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
@@ -135,13 +137,16 @@ def olrc_upload_file(path):
     except Exception, e:
         sys.stdout.flush()
         sys.stdout.write("\rError! {0}\n".format(e))
-        user_input = raw_input(
-            "Please enter anything to continue. Type 'stop' to stop."
+        sys.stdout.write(
+            "Error! {0} Upload to OLRC failed."
+            " Trying again in {1} seconds.\n".format(
+                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                SLEEP
+            )
         )
-        if (user_input == 'stop'):
-            sys.exit("Exiting.")
-        else:
-            olrc_upload_file(path)
+        time.sleep(SLEEP)
+        SLEEP += SLEEP
+        olrc_upload_file(path)
 
     return True
 
@@ -162,15 +167,16 @@ def olrc_connect():
         print(e)
         sys.stdout.flush()
         sys.stdout.write(
-            "\rError! Connection to OLRC failed. Check credentials.\n"
+            "\rError! {0} Connection to OLRC failed."
+            " Trying again in {1} seconds.\n".format(
+                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                SLEEP
+            )
         )
-        user_input = raw_input(
-            "Please enter anything to continue. Type 'stop' to stop."
-        )
-        if (user_input == 'stop'):
-            sys.exit("Exiting.")
-        else:
-            olrc_connect()
+        time.sleep(SLEEP)
+        SLEEP += SLEEP
+
+        olrc_connect()
 
 
 def is_uploaded(file_name):
