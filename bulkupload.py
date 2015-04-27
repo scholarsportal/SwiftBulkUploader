@@ -42,6 +42,7 @@ REQUIRED_VARIABLES = [
 ]
 
 
+#Currently not being used
 def olrc_upload(path):
     ''' Given a path, upload it to the OLRC. Return False if upload
     unsuccessful.'''
@@ -49,18 +50,19 @@ def olrc_upload(path):
     global FAILED_COUNT
 
     # Check file not already online.
-    if not is_uploaded(path):
+    #if not is_uploaded(path):
 
-        if not (olrc_upload_file(path)):
-            FAILED_COUNT += 1
-            error_log = open('error.log', 'a')
-            error_log.write("\rFailed: {0}\n".format(path))
-            error_log.close()
-            return False
+    if not (olrc_upload_file(path)):
+        FAILED_COUNT += 1
+        error_log = open('error.log', 'a')
+        error_log.write("\rFailed: {0}\n".format(path))
+        error_log.close()
+        return False
 
     return True
 
 
+#Currently not being used
 def olrc_upload_segments(source_file, target_directory):
     ''' Break up the source_file into segments and upload them into
     target_directory'''
@@ -181,6 +183,7 @@ def olrc_connect():
         olrc_connect()
 
 
+#Currently not being used
 def is_uploaded(file_name):
     '''Return True if String file is already on the server and its etag
     matches it's md5. Delete the file from the server if the
@@ -220,6 +223,7 @@ def is_uploaded(file_name):
         return False
 
 
+#Currently not being used
 def checksum_md5(filename):
     md5 = hashlib.md5()
     with open(filename, 'rb') as f:
@@ -264,6 +268,7 @@ def upload_table(lock, range, table_name, counter):
     '''
     global FAILED_COUNT, LIMIT, RANGE
 
+    connect = olrcdb.DatabaseConnection()
     lock.acquire()
     while range.value <= TOTAL:
 
@@ -279,19 +284,24 @@ def upload_table(lock, range, table_name, counter):
         range.value += LIMIT
         lock.release()
 
-        # Connect to the database and fetch results.
-        connect = olrcdb.DatabaseConnection()
+        # etch results.
         result = connect.execute_query(query)
         path_tuple = result.fetchone()
         # Loop until we run out of rows from the database.
         while (path_tuple):
 
             # if the upload is successful, update the database
-            if olrc_upload(path_tuple[1]):
+            if olrc_upload_file(path_tuple[1]):
                 lock.acquire()
                 counter.value += 1
                 lock.release()
                 set_uploaded(path_tuple[0], table_name)
+            else:
+
+                FAILED_COUNT += 1
+                error_log = open('error.log', 'a')
+                error_log.write("\rFailed: {0}\n".format(path))
+                error_log.close()
 
             print_status(counter, lock)
 
