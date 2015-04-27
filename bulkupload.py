@@ -117,11 +117,10 @@ def olrc_upload_segments(source_file, target_directory):
     return True
 
 
-def olrc_upload_file(path):
+def olrc_upload_file(path, attempts=0):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
 
-    global SLEEP
     try:
         opened_source_file = open(path, 'r')
     except IOError:
@@ -138,20 +137,20 @@ def olrc_upload_file(path):
     except Exception, e:
 
         olrc_connect()
-        sys.stdout.flush()
-        sys.stdout.write("\rError! {0}\n".format(e))
-        sys.stdout.write(
-            "Error! {0} Upload to OLRC failed."
-            " Trying again in {1} seconds.\n".format(
-                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                SLEEP
+        time.sleep(1)
+        if (attempts > 5):
+
+            sys.stdout.flush()
+            sys.stdout.write("\rError! {0}\n".format(e))
+            sys.stdout.write(
+                "Error! {0} Upload to OLRC failed"
+                " after {1} attempts.\n".format(
+                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                    attempts
+                )
             )
-        )
-        time.sleep(SLEEP)
-        SLEEP += SLEEP
-        if (SLEEP > 15):
             return False
-        return olrc_upload_file(path)
+        return olrc_upload_file(path, attempts + 1)
 
     return True
 
@@ -302,7 +301,7 @@ def upload_table(lock, range, table_name, counter):
 
                 FAILED_COUNT += 1
                 error_log = open('error.log', 'a')
-                error_log.write("\rFailed: {0}\n".format(path))
+                error_log.write("\rFailed: {0}\n".format(path_tuple[1]))
                 error_log.close()
 
             print_status(counter, lock)
