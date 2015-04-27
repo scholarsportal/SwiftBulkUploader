@@ -46,8 +46,6 @@ def olrc_upload(path):
     ''' Given a path, upload it to the OLRC. Return False if upload
     unsuccessful.'''
 
-    # Check connection to OLRC.
-    olrc_connect()
     global FAILED_COUNT
 
     # Check file not already online.
@@ -136,6 +134,8 @@ def olrc_upload_file(path):
             opened_source_file)
 
     except Exception, e:
+
+        olrc_connect()
         sys.stdout.flush()
         sys.stdout.write("\rError! {0}\n".format(e))
         sys.stdout.write(
@@ -435,6 +435,7 @@ if __name__ == "__main__":
     id_range = Value("i", get_min_id(table_name))
     processes = []
 
+    olrc_connect()
     # Limit is the number of rows a process uploads at a time.
     # Range is the range of ids a process uploads.
     for process in range(int(n_processes)):
