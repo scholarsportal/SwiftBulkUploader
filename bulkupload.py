@@ -430,6 +430,29 @@ def get_min_id(table_name):
     return int(result_tuple[0])
 
 
+def set_speed(lock, counter, speed):
+    '''Calculate the upload speed for the next minute and set it in the
+    speed.'''
+
+    lock.acquire()
+    past_count = counter.value
+    past_time = 1
+    lock.release()
+
+    time.sleep(60) # Sleep for 60 seconds.
+
+    lock.acquire()
+    current_count = counter.value
+    current_time = 1
+    lock.release()
+
+    lock.acquire()
+    speed.value = current_count - past count / 1 # Save the speed calculation.
+    lock.release()
+
+
+    pass
+
 if __name__ == "__main__":
 
     check_env_args()
@@ -444,6 +467,7 @@ if __name__ == "__main__":
     RANGE = get_min_id(table_name)
     lock = Lock()
     id_range = Value("i", get_min_id(table_name))
+    speed =
     processes = []
 
     olrc_connect()
@@ -455,7 +479,9 @@ if __name__ == "__main__":
             args=(
                 lock,
                 id_range,
-                table_name, counter))
+                table_name,
+                counter,
+                speed))
         p.start()
         processes.append(p)
 
