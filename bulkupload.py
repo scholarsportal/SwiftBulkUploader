@@ -119,7 +119,6 @@ def olrc_upload_file(path):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
 
-    path = path.strip("/")
     global SLEEP
     try:
         opened_source_file = open(path, 'r')
