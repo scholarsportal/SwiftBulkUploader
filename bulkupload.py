@@ -458,7 +458,6 @@ def set_speed(lock, counter, speed, range):
 
         # Save the speed calculation.
         lock.release()
-        print("Tes'")
 
 
 if __name__ == "__main__":
@@ -490,7 +489,6 @@ if __name__ == "__main__":
                 id_range,
                 table_name,
                 counter,
-                range,
                 speed))
         p.start()
         processes.append(p)
