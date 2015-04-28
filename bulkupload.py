@@ -416,7 +416,7 @@ def print_status(counter, lock, speed):
     lock.release()
 
     sys.stdout.flush()
-    sys.stdout.write("\r{0}% Uploaded at {1} uploads/minute. ".format(
+    sys.stdout.write("\r{0}% Uploaded at {1:.2f} uploads/second. ".format(
         percentage_uploaded, speed.value))
 
 
@@ -451,12 +451,10 @@ def set_speed(lock, counter, speed, range):
         lock.release()
 
         lock.acquire()
-        speed.value = floor(
-            (
-                float(stop_count - start_count) /
-                float(stop_time - start_time)
-            )
-            * 60)
+        speed.value = (
+            float(stop_count - start_count) /
+            float(stop_time - start_time)
+        )
 
         # Save the speed calculation.
         lock.release()
