@@ -179,7 +179,7 @@ def olrc_connect():
             )
         )
         time.sleep(SLEEP)
-        SLEEP += SLEEP
+        SLEEP += 1
 
         olrc_connect()
 
