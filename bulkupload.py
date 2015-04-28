@@ -443,7 +443,7 @@ def set_speed(lock, counter, speed, range):
         start_time = time.time()
         lock.release()
 
-        time.sleep(60)  # Sleep for 60 seconds.
+        time.sleep(5)  # Sleep for 60 seconds.
 
         lock.acquire()
         stop_count = counter.value
