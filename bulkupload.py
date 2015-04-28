@@ -443,7 +443,7 @@ def set_speed(lock, counter, speed, range):
         start_time = time.time()
         lock.release()
 
-        time.sleep(30)  # Sleep for 60 seconds.
+        time.sleep(60)  # Sleep for 60 seconds.
 
         lock.acquire()
         stop_count = counter.value
@@ -452,9 +452,11 @@ def set_speed(lock, counter, speed, range):
 
         lock.acquire()
         speed.value = floor(
-            float(stop_count - start_count) /
-            float(stop_time - start_time)
-        ) * 60
+            (
+                float(stop_count - start_count) /
+                float(stop_time - start_time)
+            )
+            * 60)
 
         # Save the speed calculation.
         lock.release()
