@@ -9,6 +9,7 @@ import socket
 import time
 import olrcdb
 from multiprocessing import Process, Lock, Value
+from math import floor
 
 
 #Settings
@@ -160,6 +161,7 @@ def olrc_connect():
     fails.'''
 
     global SLEEP
+
     try:
         (connection_storage_url, auth_token) = swiftclient.client.get_auth(
             SWIFT_AUTH_URL, USERNAME, PASSWORD,
@@ -262,7 +264,7 @@ def set_env_vars():
     return
 
 
-def upload_table(lock, range, table_name, counter):
+def upload_table(lock, range, table_name, counter, speed):
     '''
     Given a table_name, upload all the paths from the table where upload is 0.
     Upload within a LIMIT range at a time.
@@ -304,7 +306,7 @@ def upload_table(lock, range, table_name, counter):
                 error_log.write("\rFailed: {0}\n".format(path_tuple[1]))
                 error_log.close()
 
-            print_status(counter, lock)
+            print_status(counter, lock, speed)
 
             path_tuple = result.fetchone()
         lock.acquire()
@@ -402,7 +404,7 @@ def end_reporting(counter):
     sys.stdout.write(report)
 
 
-def print_status(counter, lock):
+def print_status(counter, lock, speed):
     '''Print the current status of uploaded files.'''
     global TOTAL
 
@@ -414,7 +416,8 @@ def print_status(counter, lock):
     lock.release()
 
     sys.stdout.flush()
-    sys.stdout.write("\r{0}% Uploaded. ".format(percentage_uploaded))
+    sys.stdout.write("\r{0}% Uploaded at {1} uploads/minute. ".format(
+        percentage_uploaded, speed.value))
 
 
 def get_min_id(table_name):
@@ -430,28 +433,33 @@ def get_min_id(table_name):
     return int(result_tuple[0])
 
 
-def set_speed(lock, counter, speed):
+def set_speed(lock, counter, speed, range):
     '''Calculate the upload speed for the next minute and set it in the
     speed.'''
 
-    lock.acquire()
-    past_count = counter.value
-    past_time = 1
-    lock.release()
+    while range.value <= TOTAL:
+        lock.acquire()
+        start_count = counter.value
+        start_time = time.time()
+        lock.release()
 
-    time.sleep(60) # Sleep for 60 seconds.
+        time.sleep(30)  # Sleep for 60 seconds.
 
-    lock.acquire()
-    current_count = counter.value
-    current_time = 1
-    lock.release()
+        lock.acquire()
+        stop_count = counter.value
+        stop_time = time.time()
+        lock.release()
 
-    lock.acquire()
-    speed.value = current_count - past count / 1 # Save the speed calculation.
-    lock.release()
+        lock.acquire()
+        speed.value = floor(
+            float(stop_count - start_count) /
+            float(stop_time - start_time)
+        ) * 60
 
+        # Save the speed calculation.
+        lock.release()
+        print("Tes'")
 
-    pass
 
 if __name__ == "__main__":
 
@@ -466,11 +474,12 @@ if __name__ == "__main__":
     counter = Value("i", get_total_uploaded(table_name))
     RANGE = get_min_id(table_name)
     lock = Lock()
-    id_range = Value("i", get_min_id(table_name))
-    speed =
+    id_range = Value("i", RANGE)
+    speed = Value("d", 0.0)
     processes = []
 
     olrc_connect()
+
     # Limit is the number of rows a process uploads at a time.
     # Range is the range of ids a process uploads.
     for process in range(int(n_processes)):
@@ -481,9 +490,21 @@ if __name__ == "__main__":
                 id_range,
                 table_name,
                 counter,
+                range,
                 speed))
         p.start()
         processes.append(p)
+
+    # Calculate the speed
+    p = Process(
+        target=set_speed,
+        args=(
+            lock,
+            counter,
+            speed,
+            id_range))
+    p.start()
+    processes.append(p)
 
     #Join all processes
     for process in processes:
