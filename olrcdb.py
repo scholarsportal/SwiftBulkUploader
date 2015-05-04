@@ -60,15 +60,8 @@ class DatabaseConnection(object):
             path
         )
 
-        try:
-            self.cursor.execute(query)
-            self.db.commit()
-        except MySQLdb.Error, e:
-            sys.exit("ERROR {0} IN INSERT: {1}\nQuery:{2}".format(
-                e.args[0],
-                e.args[1],
-                query
-            ))
+        self.cursor.execute(query)
+        self.db.commit()
 
     def execute_query(self, query):
         '''Execute the given query and return the cursor object.'''

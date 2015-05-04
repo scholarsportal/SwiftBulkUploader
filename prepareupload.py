@@ -2,8 +2,10 @@ import sys
 import olrcdb
 import os
 
+import datetime
 # Globals
 COUNT = 0
+FAILED = 0
 
 
 class FileParser(object):
@@ -27,7 +29,7 @@ def prepare_upload(connect, directory, table_name):
     -populate the table with (path, uploaded=false)
     where each path is a file in the given directory.'''
 
-    global COUNT
+    global COUNT, FAILED
 
     for filename in os.listdir(directory):
 
@@ -35,9 +37,14 @@ def prepare_upload(connect, directory, table_name):
 
         # Add file name to the list.
         if os.path.isfile(file_path):
-            connect.insert_path(file_path, table_name)
-            COUNT += 1
-
+            try:
+                connect.insert_path(file_path, table_name)
+                COUNT += 1
+            except:
+                FAILED += 1
+                error_log = open('error.log', 'a')
+                error_log.write("\rFailed: {0}\n".format(file_path))
+                error_log.close()
             sys.stdout.flush()
             sys.stdout.write("\r{0} parsed. ".format(COUNT))
         else:
@@ -53,6 +60,18 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
+     #Open error log:
+    error_log = open('error.log', 'w+')
+    error_log.write("From execution {0}:\n".format(
+        str(datetime.datetime.now())
+    ))
+    error_log.close()
+
     connect = olrcdb.DatabaseConnection()
     connect.create_table(sys.argv[2])
     prepare_upload(connect, sys.argv[1], sys.argv[2])
+
+    sys.stdout.flush()
+    sys.stdout.write("\r{0} parsed. ".format(COUNT))
+    if FAILED != 0:
+        sys.stdout.write("\n{0} FAILED. See error.log.".format(FAILED))
