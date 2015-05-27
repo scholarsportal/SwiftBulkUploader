@@ -16,6 +16,7 @@ class DatabaseConnection(object):
                 user=os.environ["MYSQL_USER"],
                 passwd=os.environ["MYSQL_PASSWD"],
                 db=os.environ["MYSQL_DB"],
+                charset='utf8',
             )
             self.cursor = self.db.cursor()
         except KeyError:

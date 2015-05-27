@@ -303,7 +303,7 @@ def upload_table(lock, range, table_name, counter, speed):
 
                 FAILED_COUNT += 1
                 error_log = open('error.log', 'a')
-                error_log.write("\rFailed: {0}\n".format(path_tuple[1]))
+                error_log.write("\rFailed: {0}\n".format(path_tuple[1].encode('utf-8')))
                 error_log.close()
 
             print_status(counter, lock, speed)
