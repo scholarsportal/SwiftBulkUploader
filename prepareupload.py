@@ -42,11 +42,16 @@ def prepare_upload(connect, directory, table_name):
                 COUNT += 1
             except:
                 FAILED += 1
-                error_log = open('error.log', 'a')
+                error_log = open(table_name + 'error.log', 'a')
                 error_log.write("\rFailed: {0}\n".format(file_path))
                 error_log.close()
             sys.stdout.flush()
             sys.stdout.write("\r{0} parsed. ".format(COUNT))
+
+            #Output status to a file.
+            final_count = open(table_name + ".out", 'w+')
+            final_count.write("\r{0} parsed. ".format(COUNT))
+            final_count.close()
         else:
             prepare_upload(connect, file_path, table_name)
 
@@ -75,3 +80,8 @@ if __name__ == "__main__":
     sys.stdout.write("\r{0} parsed. ".format(COUNT))
     if FAILED != 0:
         sys.stdout.write("\n{0} FAILED. See error.log.".format(FAILED))
+
+    #Log the final count
+    final_count = open(sys.argv[2] + ".out", 'w+')
+    final_count.write("\r{0} parsed. ".format(COUNT))
+    final_count.close()
