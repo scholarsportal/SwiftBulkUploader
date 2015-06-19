@@ -43,81 +43,6 @@ REQUIRED_VARIABLES = [
 ]
 
 
-#Currently not being used
-def olrc_upload(path):
-    ''' Given a path, upload it to the OLRC. Return False if upload
-    unsuccessful.'''
-
-    global FAILED_COUNT
-
-    # Check file not already online.
-    #if not is_uploaded(path):
-
-    if not (olrc_upload_file(path)):
-        FAILED_COUNT += 1
-        error_log = open('error.log', 'a')
-        error_log.write("\rFailed: {0}\n".format(path))
-        error_log.close()
-        return False
-
-    return True
-
-
-#Currently not being used
-def olrc_upload_segments(source_file, target_directory):
-    ''' Break up the source_file into segments and upload them into
-    target_directory'''
-
-    segments = filesegmenter.split_file(
-        source_file,
-        'temp',
-        SEGMENT_SIZE
-    )
-
-    sys.stdout.flush()
-    sys.stdout.write("\rPartitioning file {0}".format(source_file))
-
-    for segment in segments:
-
-        # Files are within the temp directory locally. On the server the file
-        # will live in the target_directory so we need to remove 'temp/' from
-        # target_file.
-        target_file = os.path.join(target_directory, segment.split('/', 1)[1])
-        sys.stdout.flush()
-        sys.stdout.write("\rUploading file {0}".format(segment))
-
-        # MDCheck
-        if not is_uploaded(segment, target_file):
-            if not olrc_upload_file(segment, target_file):
-                return False
-        else:
-
-            sys.stdout.flush()
-            sys.stdout.write(
-                "\rSkipping: {0}, already uploaded.".format(source_file)
-            )
-
-    # Create and upload readme file.
-
-    readme = "The file in this directory has been segmented for convenient" \
-        " upload and download. To assemble the file, run the following " \
-        "command on your machine in the directory with all the segments: " \
-        "\n\ncat * >> {0}".format(source_file.split('/')[-1])
-    outFile = open("temp/readme.txt", "wt")
-    outFile.write(readme)
-    outFile.close()
-
-    olrc_upload_file(
-        "temp/readme.txt",
-        os.path.join(target_directory, "readme.txt")
-    )
-    #Clean up temp files
-    if os.path.isdir(TEMP_DIRECTORY):
-        shutil.rmtree(TEMP_DIRECTORY)
-
-    return True
-
-
 def olrc_upload_file(path, attempts=0):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
@@ -184,55 +109,6 @@ def olrc_connect():
         SLEEP += 1
 
         olrc_connect()
-
-
-#Currently not being used
-def is_uploaded(file_name):
-    '''Return True if String file is already on the server and its etag
-    matches it's md5. Delete the file from the server if the
-    md5 does not match.'''
-
-    # Swift stat on filename.
-    try:
-        object_stat = swiftclient.client.head_object(
-            STORAGE_URL,
-            AUTH_TOKEN,
-            CONTAINER,
-            file_name
-        )
-        try:
-            etag = object_stat['etag']
-        except:
-            # Return if no etag
-            return False
-
-        md5 = checksum_md5(file_name)
-        match = etag == md5
-
-        # Delete the file if the md5 does not match.
-        if not match:
-            try:
-                swiftclient.client.delete_object(
-                    STORAGE_URL,
-                    AUTH_TOKEN,
-                    CONTAINER,
-                    file_name
-                )
-            except:
-                pass
-
-        return match
-    except:
-        return False
-
-
-#Currently not being used
-def checksum_md5(filename):
-    md5 = hashlib.md5()
-    with open(filename, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), b''):
-            md5.update(chunk)
-    return md5.hexdigest()
 
 
 def is_env_vars_set():
@@ -303,10 +179,12 @@ def upload_table(lock, range, table_name, counter, speed):
 
                 FAILED_COUNT += 1
                 error_log = open('error.log', 'a')
-                error_log.write("\rFailed: {0}\n".format(path_tuple[1].encode('utf-8')))
+                error_log.write(
+                    "\rFailed: {0}\n".format(
+                        path_tuple[1].encode('utf-8')))
                 error_log.close()
 
-            print_status(counter, lock, speed)
+            print_status(counter, lock, speed, table_name)
 
             path_tuple = result.fetchone()
         lock.acquire()
@@ -374,21 +252,21 @@ def check_env_args():
         exit(0)
 
 
-def start_reporting():
+def start_reporting(table_name):
     '''Do the setup work for reporting.'''
 
     #Open error log:
-    error_log = open('error.log', 'w+')
+    error_log = open(table_name + '.error.log', 'w+')
     error_log.write("From execution {0}:\n".format(
         str(datetime.datetime.now())
     ))
     error_log.close()
 
 
-def end_reporting(counter):
+def end_reporting(counter, table_name):
     '''Do the wrap uup work for reporting.'''
     #Save report in file.
-    report_log = open('report.log', 'w+')
+    report_log = open(table_name + '.report.log', 'w+')
     report_log.write("From execution {0}:\n".format(
         str(datetime.datetime.now())
     ))
@@ -404,7 +282,7 @@ def end_reporting(counter):
     sys.stdout.write(report)
 
 
-def print_status(counter, lock, speed):
+def print_status(counter, lock, speed, table_name):
     '''Print the current status of uploaded files.'''
     global TOTAL
 
@@ -418,6 +296,13 @@ def print_status(counter, lock, speed):
     sys.stdout.flush()
     sys.stdout.write("\r{0}% Uploaded at {1:.2f} uploads/second. ".format(
         percentage_uploaded, speed.value))
+
+    #Log the final count
+    report = open(table_name + "upload.out", 'w+')
+    report.write(
+        "\r{0}% Uploaded at {1:.2f} uploads/second. ".format(
+            percentage_uploaded, speed.value))
+    report.close()
 
 
 def get_min_id(table_name):
@@ -463,7 +348,6 @@ def set_speed(lock, counter, speed, range):
 if __name__ == "__main__":
 
     check_env_args()
-    start_reporting()
 
     CONTAINER = sys.argv[1]
     table_name = sys.argv[2]
@@ -477,6 +361,7 @@ if __name__ == "__main__":
     speed = Value("d", 0.0)
     processes = []
 
+    start_reporting(table_name)
     olrc_connect()
 
     # Limit is the number of rows a process uploads at a time.
@@ -507,4 +392,4 @@ if __name__ == "__main__":
     #Join all processes
     for process in processes:
         process.join()
-    end_reporting(counter)
+    end_reporting(counter, table_name)

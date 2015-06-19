@@ -49,7 +49,7 @@ def prepare_upload(connect, directory, table_name):
             sys.stdout.write("\r{0} parsed. ".format(COUNT))
 
             #Output status to a file.
-            final_count = open(table_name + ".out", 'w+')
+            final_count = open(table_name + "prepare.out", 'w+')
             final_count.write("\r{0} parsed. ".format(COUNT))
             final_count.close()
         else:
@@ -82,6 +82,6 @@ if __name__ == "__main__":
         sys.stdout.write("\n{0} FAILED. See error.log.".format(FAILED))
 
     #Log the final count
-    final_count = open(sys.argv[2] + ".out", 'w+')
+    final_count = open(sys.argv[2] + "prepare.out", 'w+')
     final_count.write("\r{0} parsed. ".format(COUNT))
     final_count.close()
