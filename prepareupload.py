@@ -41,10 +41,17 @@ def prepare_upload(connect, directory, table_name):
                 connect.insert_path(file_path, table_name)
                 COUNT += 1
             except:
-                FAILED += 1
-                error_log = open(table_name + 'error.log', 'a')
-                error_log.write("\rFailed: {0}\n".format(file_path))
-                error_log.close()
+
+                # Try again with the alternative query.
+                try:
+                    connect.insert_path(file_path, table_name, True)
+                    COUNT += 1
+                except:
+
+                    FAILED += 1
+                    error_log = open(table_name + 'error.log', 'a')
+                    error_log.write("\rFailed: {0}\n".format(file_path))
+                    error_log.close()
             sys.stdout.flush()
             sys.stdout.write("\r{0} parsed. ".format(COUNT))
 

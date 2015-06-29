@@ -53,13 +53,20 @@ class DatabaseConnection(object):
                 e.args[1]
             ))
 
-    def insert_path(self, path, table_name):
-        '''Insert the given path to the table_name.'''
+    def insert_path(self, path, table_name, alt=False):
+        '''Insert the given path to the table_name. If alt, create
+        the query with reversed qutoes.'''
 
-        query = "INSERT INTO {0} (path) VALUES ('{1}');".format(
-            table_name,
-            path
-        )
+        if not alt:
+            query = "INSERT INTO {0} (path) VALUES ('{1}');".format(
+                table_name,
+                path
+            )
+        else:
+            query = 'INSERT INTO {0} (path) VALUES ("{1}");'.format(
+                table_name,
+                path
+            )
 
         self.cursor.execute(query)
         self.db.commit()
