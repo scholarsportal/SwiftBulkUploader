@@ -55,7 +55,7 @@ class DatabaseConnection(object):
 
     def insert_path(self, path, table_name, alt=False):
         '''Insert the given path to the table_name. If alt, create
-        the query with reversed qutoes.'''
+        the query with reversed quotes.'''
 
         if not alt:
             query = "INSERT INTO {0} (path) VALUES ('{1}');".format(

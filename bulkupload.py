@@ -20,16 +20,12 @@ PASSWORD = ''
 CONTAINER = ''
 AUTH_TOKEN = ''
 STORAGE_URL = ''
-TEMP_DIRECTORY = 'temp'
-FILE_LIMIT = 0.5*10**9  # Max file size in bytes that a file can be uploaded.
-# Anything larger is segmented
 SEGMENT_SIZE = 100*10**6
 COUNT = 0
 TOTAL = 0
 FAILED_COUNT = 0
-LIMIT = 1000
-RANGE = 0  # protected variable
-SLEEP = 1
+BATCH = 1000  # the number of rows a process uploads at a time.
+SLEEP = 1  # Sleep timeout when trying to connect to the database.
 
 REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
@@ -43,7 +39,7 @@ REQUIRED_VARIABLES = [
 ]
 
 
-def olrc_upload_file(path, attempts=0):
+def upload_file(path, attempts=0):
     '''Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. '''
 
@@ -76,7 +72,7 @@ def olrc_upload_file(path, attempts=0):
                 )
             )
             return False
-        return olrc_upload_file(path, attempts + 1)
+        return upload_file(path, attempts + 1)
 
     return True
 
@@ -111,7 +107,7 @@ def olrc_connect():
         olrc_connect()
 
 
-def is_env_vars_set():
+def env_vars_set():
     '''Check all the required environment variables are set. Return false if
     any of them are undefined.'''
 
@@ -143,40 +139,42 @@ def set_env_vars():
 def upload_table(lock, range, table_name, counter, speed):
     '''
     Given a table_name, upload all the paths from the table where upload is 0.
-    Upload within a LIMIT range at a time.
+    Using the range value, complete a BATCH worth of uploads at a time.
     '''
-    global FAILED_COUNT, LIMIT, RANGE
+    global FAILED_COUNT, BATCH
 
     connect = olrcdb.DatabaseConnection()
+
+    # In order for the current process to upload a unique set of files,
+    # acquire the lock to read from range's value.
     lock.acquire()
     while range.value <= TOTAL:
 
-        # Access protected variable.
-        # We want to make we only fetch within a unique range,
-        # so RANGE is locked.
-            # "grab" a LIMITs with of rows at a time.
+        # Grab a "BATCH" worth of file paths to upload.
         query = (
             "SELECT * FROM {0} WHERE uploaded=0"
             " AND id >= {1} AND id <{2}".format(
-                table_name, range.value, range.value + LIMIT))
-        # Let other processes know this range.value has been accounted for.
-        range.value += LIMIT
+                table_name, range.value, range.value + BATCH))
+
+        # Let other processes know this batch has been accounted for.
+        range.value += BATCH
         lock.release()
 
-        # etch results.
+        # Fetch results.
         result = connect.execute_query(query)
         path_tuple = result.fetchone()
-        # Loop until we run out of rows from the database.
+
+        # Loop until we run out of rows from the batch
         while (path_tuple):
 
-            # if the upload is successful, update the database
-            if olrc_upload_file(path_tuple[1]):
+            # If the upload is successful, update the database
+            if upload_file(path_tuple[1]):
                 lock.acquire()
                 counter.value += 1
                 lock.release()
                 set_uploaded(path_tuple[0], table_name)
-            else:
 
+            else:
                 FAILED_COUNT += 1
                 error_log = open(table_name+'.upload.error.log', 'a')
                 error_log.write(
@@ -228,7 +226,7 @@ def set_uploaded(id, table_name):
 def check_env_args():
     '''Do checks on the environment and args.'''
     # Check environment variables
-    if not is_env_vars_set():
+    if not env_vars_set():
         set_env_message = "The following environment variables need to be " \
             "set:\n"
         set_env_message += " \n".join(REQUIRED_VARIABLES)
@@ -253,10 +251,10 @@ def check_env_args():
 
 
 def start_reporting(table_name):
-    '''Do the setup work for reporting.'''
+    '''Create an error log file. Note the time of execution.'''
 
     #Open error log:
-    error_log = open(table_name + '.error.log', 'w+')
+    error_log = open(table_name + '.upload.error.log', 'w+')
     error_log.write("From execution {0}:\n".format(
         str(datetime.datetime.now())
     ))
@@ -264,9 +262,9 @@ def start_reporting(table_name):
 
 
 def end_reporting(counter, table_name):
-    '''Do the wrap uup work for reporting.'''
-    #Save report in file.
-    report_log = open(table_name + '.report.log', 'w+')
+    '''Create a report log. Output upload summary.'''
+
+    report_log = open(table_name + '.upload.report.log', 'w+')
     report_log.write("From execution {0}:\n".format(
         str(datetime.datetime.now())
     ))
@@ -298,7 +296,7 @@ def print_status(counter, lock, speed, table_name):
         percentage_uploaded, speed.value))
 
     #Log the final count
-    report = open(table_name + "upload.out", 'w+')
+    report = open(table_name + ".upload.out", 'w+')
     report.write(
         "\r{0}% Uploaded at {1:.2f} uploads/second. ".format(
             percentage_uploaded, speed.value))
@@ -349,23 +347,29 @@ if __name__ == "__main__":
 
     check_env_args()
 
-    CONTAINER = sys.argv[1]
-    table_name = sys.argv[2]
-    n_processes = sys.argv[3]
+    CONTAINER = sys.argv[1]  # Swift container files will be uploaded to.
+    table_name = sys.argv[2]  # Name of table to read file paths from.
+    n_processes = sys.argv[3]  # Number of processes to create for uploading.
+
+    olrc_connect()
 
     TOTAL = get_total_to_upload(table_name)
+
+    # Integer value of uploaded files within target table.
     counter = Value("i", get_total_uploaded(table_name))
-    RANGE = get_min_id(table_name)
     lock = Lock()
-    id_range = Value("i", RANGE)
-    speed = Value("d", 0.0)
+
+    # Processes share this id_range value and block of a chunk of ids
+    # for themselves to upload.
+    id_range = Value("i", get_min_id(table_name))
+
+    speed = Value("d", 0.0)  # Tracker for upload speed.
+
     processes = []
 
     start_reporting(table_name)
-    olrc_connect()
 
-    # Limit is the number of rows a process uploads at a time.
-    # Range is the range of ids a process uploads.
+    # Create a new process n times.
     for process in range(int(n_processes)):
         p = Process(
             target=upload_table,
@@ -375,10 +379,12 @@ if __name__ == "__main__":
                 table_name,
                 counter,
                 speed))
+
+        # Execute the upload_table function
         p.start()
         processes.append(p)
 
-    # Calculate the speed
+    # Create a process to calculate the speed of uploads.
     p = Process(
         target=set_speed,
         args=(
@@ -392,4 +398,5 @@ if __name__ == "__main__":
     #Join all processes
     for process in processes:
         process.join()
+
     end_reporting(counter, table_name)
