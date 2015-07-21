@@ -4,6 +4,7 @@ These scripts assist in uploading an entire directory onto swift. They were inte
 
 ## Requirements
 * Python 2.7+
+* python-mysqldb 
 * [Python Swiftclient][python-swiftclient]
 * MySQL database
 * The following environment variables
