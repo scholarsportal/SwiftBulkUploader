@@ -342,8 +342,7 @@ def set_speed(lock, counter, speed, range):
         # Save the speed calculation.
         lock.release()
 
-
-if __name__ == "__main__":
+def main():
 
     check_env_args()
 
@@ -400,3 +399,6 @@ if __name__ == "__main__":
         process.join()
 
     end_reporting(counter, table_name)
+
+if __name__ == "__main__":
+    main()
