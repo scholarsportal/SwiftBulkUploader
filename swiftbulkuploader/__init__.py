@@ -2,4 +2,4 @@
 
 __author__ = 'OLRC Collaborators'
 __email__ = 'cloudtech@scholarsportal.info'
-__version__ = '0.1.0'
+__version__ = '0.1.1'

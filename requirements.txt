@@ -1,3 +1,5 @@
 wheel==0.23.0
-MySQL-python
 python-swiftclient
+click==3.3
+python-keystoneclient
+subprocess32
