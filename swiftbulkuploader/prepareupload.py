@@ -60,8 +60,7 @@ def prepare_upload(connect, directory, table_name):
         else:
             prepare_upload(connect, file_path, table_name)
 
-
-if __name__ == "__main__":
+def main():
 
     # Check for proper parameters
     if len(sys.argv) != 3:
@@ -103,3 +102,6 @@ if __name__ == "__main__":
     final_count = open(table_name + ".prepare.out", 'w+')
     final_count.write("\r{0} parsed. ".format(COUNT))
     final_count.close()
+
+if __name__ == "__main__":
+    main()
