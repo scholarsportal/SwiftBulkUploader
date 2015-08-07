@@ -31,23 +31,23 @@ Until we're in pypi::
     virtualenv swiftbulkuploader
     cd swiftbulkuploader
     source bin/activate
-    git clone https://github.com/cudevmaxwell/SwiftBulkUploader.git 
-    cd SwiftBulkUploader 
+    git clone https://github.com/cudevmaxwell/SwiftBulkUploader.git
+    cd SwiftBulkUploader
     git checkout removemysql
-    cd .. 
+    cd ..
     pip install --editable SwiftBulkUploader
 
 *******************
 Usage
 *******************
 
-1. Index target directory with prepare:: 
+1. Index target directory with prepare::
 
-    $ swiftbulkuploader prepare /path/to/dir /path/to/other/dir
+    $ swiftbulkuploader prepare /path/to/dir /path/to/another/dir
 
 This creates a database and populates it with paths.
 
 2. Upload files as stored in step 1::
 
-    $ swiftbulkuploader upload --os-username=username --os-password=password --os-tenant-name=tenant --os-auth-url=url test 
- 
+    $ swiftbulkuploader upload --username=username --password=password --tenant-name=tenant --auth-url=url containername
+
