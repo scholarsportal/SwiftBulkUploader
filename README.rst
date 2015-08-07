@@ -31,10 +31,7 @@ Until we're in pypi::
     virtualenv swiftbulkuploader
     cd swiftbulkuploader
     source bin/activate
-    git clone https://github.com/cudevmaxwell/SwiftBulkUploader.git
-    cd SwiftBulkUploader
-    git checkout removemysql
-    cd ..
+    git clone https://github.com/OLRC/SwiftBulkUploader.git
     pip install --editable SwiftBulkUploader
 
 *******************
