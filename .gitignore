@@ -2,6 +2,7 @@ sample*/*
 *.log
 *.pyc
 *.out
+*.db
 
 *.py[cod]
 

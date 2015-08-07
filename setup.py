@@ -15,8 +15,10 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read().replace('.. :changelog:', '')
 
 requirements = [
-    'MySQL-python',
-    'python-swiftclient'
+    'click==3.3',
+    'python-swiftclient',
+    'python-keystoneclient',
+    'subprocess32'
 ]
 
 test_requirements = [
@@ -25,7 +27,7 @@ test_requirements = [
 
 setup(
     name='swiftbulkuploader',
-    version='0.1.0',
+    version='0.1.1',
     description="Swift Bulk Uploader makes it easy to upload entire directories to the OLRC. The Ontario Library Research Cloud (OLRC) project is a collaboration of Ontario’s university libraries to build a high capacity, geographically distributed storage network, based on OpenStack and the Swift object store.",
     long_description=readme + '\n\n' + history,
     author="OLRC Collaborators",
@@ -52,8 +54,7 @@ setup(
     tests_require=test_requirements,
     entry_points={
         'console_scripts': [
-            'prepareupload=swiftbulkuploader.prepareupload:main',
-            'bulkupload=swiftbulkuploader.bulkupload:main'
+            'swiftbulkuploader=swiftbulkuploader.swiftbulkuploader:cli'
         ]
     }
 )
