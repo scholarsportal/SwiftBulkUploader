@@ -18,7 +18,8 @@ requirements = [
     'click==3.3',
     'python-swiftclient',
     'python-keystoneclient',
-    'subprocess32'
+    'subprocess32',
+    'sqlalchemy'
 ]
 
 test_requirements = [

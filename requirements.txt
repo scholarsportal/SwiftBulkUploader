@@ -3,3 +3,4 @@ python-swiftclient
 click==3.3
 python-keystoneclient
 subprocess32
+sqlalchemy

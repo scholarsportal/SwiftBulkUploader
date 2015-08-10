@@ -40,11 +40,11 @@ Usage
 
 1. Index target directory with prepare::
 
-    $ swiftbulkuploader prepare /path/to/dir /path/to/another/dir
+    $ swiftbulkuploader --db-url sqlite:////tmp/paths.db prepare /path/to/dir /path/to/another/dir
 
 This creates a database and populates it with paths.
 
 2. Upload files as stored in step 1::
 
-    $ swiftbulkuploader upload --username=username --password=password --tenant-name=tenant --auth-url=url containername
+    $ swiftbulkuploader --db-url sqlite:////tmp/paths.db upload --username=username --password=password --tenant-name=tenant --auth-url=url containername
 
