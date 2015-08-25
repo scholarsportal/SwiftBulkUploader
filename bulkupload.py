@@ -113,7 +113,8 @@ def env_vars_set():
 
     global REQUIRED_VARIABLES
     for required_variable in REQUIRED_VARIABLES:
-        if not os.environ.get(required_variable):
+        if (not os.environ.get(required_variable)
+                and os.environ.get(required_variable) != ""):
             return False
 
     return True
