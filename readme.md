@@ -4,7 +4,7 @@ These scripts assist in uploading an entire directory onto swift. They were inte
 
 ## Requirements
 * Python 2.7+
-* python-mysqldb 
+* python-mysqldb
 * [Python Swiftclient][python-swiftclient]
 * MySQL database
 * The following environment variables
@@ -41,12 +41,11 @@ $ python bulkupload.py containername MysqlTableName 3
 
 This creates 3 processes that reads from MysqlTableName and uploads files into the container containername. If the upload process is stopped, it can be re-run and continue uploading without reuploading already uploaded files. Increase 3 to an appropriate number that your CPU can handle for faster speeds.
 
+### Output
 This script outputs the following files:
 * MysqlTableName.upload.out # Real time progress of upload
 * MysqlTableName.error.log # Logs failed uploads
 * MysqlTableName.report.log # Created when upload is complete with summary of results.
-
-
 
 To check the progress of the upload, run the following command:
 
@@ -54,3 +53,15 @@ To check the progress of the upload, run the following command:
 $ tail -f MysqlTableName.upload.out
 ```
 [python-swiftclient]:https://pypi.python.org/pypi/python-swiftclient
+
+
+### Optional Arguments
+
+####path-cutoff
+
+Example:
+```sh
+$ python bulkupload.py containername MysqlTableName 3 path-cutoff
+```
+
+When uploading a directory from your filesystem, the folder structure is maintained. But sometimes you may not need the entire path. Say you have files in /Users/John/Doe/assets. By using Doe as your path-cutoff, only the directory structure under assets will be maintained.

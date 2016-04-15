@@ -26,6 +26,7 @@ TOTAL = 0
 FAILED_COUNT = 0
 BATCH = 1000  # the number of rows a process uploads at a time.
 SLEEP = 1  # Sleep timeout when trying to connect to the database.
+PATH_CUTOFF = ''  # The cutoff substring for paths
 
 REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
@@ -50,15 +51,19 @@ def upload_file(path, attempts=0):
         return False
     try:
 
+        if PATH_CUTOFF:
+            path = path.split(PATH_CUTOFF)[-1]
+
         # Paths beginning with "/" will lose their folder structure on swift.
         # Removing it will preserve it.
         if path[0] == "/":
             path = path[1:]
+
         swiftclient.client.put_object(
             STORAGE_URL,
             AUTH_TOKEN,
             CONTAINER,
-            path[1:],
+            path,
             opened_source_file)
 
     except Exception, e:
@@ -260,14 +265,15 @@ def check_env_args():
         set_env_vars()
 
     total = len(sys.argv)
-    cmd_args = sys.argv
     usage = "Please pass in a few arguments, see example below \n" \
-        "python bulkupload.py container-name mysql-table n-processes\n" \
-        "where mysql-table is table created from prepareupload.py and " \
-        "n-process is the number of processes created to run this script. " \
+        "python bulkupload.py container-name mysql-table n-processes path-cutoff\n" \
+        "where mysql-table is table created from prepareupload.py, " \
+        "n-process is the number of processes created to run this script and" \
+        " path-cutoff is the string that indicates from where the path is" \
+        " truncated from the front."
 
     # Do not execute if no directory provided.
-    if total != 4:
+    if total != 4 and total != 5:
         print(usage)
         exit(0)
 
@@ -372,6 +378,8 @@ if __name__ == "__main__":
     CONTAINER = sys.argv[1]  # Swift container files will be uploaded to.
     table_name = sys.argv[2]  # Name of table to read file paths from.
     n_processes = sys.argv[3]  # Number of processes to create for uploading.
+    if len(sys.argv) == 5:
+        PATH_CUTOFF = sys.argv[4] # The path cutoff
 
     olrc_connect()
     create_container()
