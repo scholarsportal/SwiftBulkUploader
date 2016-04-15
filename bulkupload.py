@@ -49,11 +49,16 @@ def upload_file(path, attempts=0):
         print("Error opening: " + path)
         return False
     try:
+
+        # Paths beginning with "/" will lose their folder structure on swift.
+        # Removing it will preserve it.
+        if path[0] == "/":
+            path = path[1:]
         swiftclient.client.put_object(
             STORAGE_URL,
             AUTH_TOKEN,
             CONTAINER,
-            path,
+            path[1:],
             opened_source_file)
 
     except Exception, e:
