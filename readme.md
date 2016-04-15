@@ -17,7 +17,7 @@ These scripts assist in uploading an entire directory onto swift. They were inte
  * MYSQL_DB
 
 ## Usage
-1. Index target directory with prepareupload.py
+Step 1. Index target directory with prepareupload.py
 
 ```sh
 $ python prepareupload.py PathTodirectory MysqlTableName
@@ -33,7 +33,7 @@ While the above command is running, in a new tab run the following command to wa
 $ tail -f MysqlTableName.prepare.out
 ```
 
-2. Upload files as stored in step 1.
+Step 2. Upload files as stored in step 1.
 
 ```sh
 $ python bulkupload.py containername MysqlTableName 3

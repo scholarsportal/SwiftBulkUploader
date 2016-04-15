@@ -106,6 +106,22 @@ def olrc_connect():
 
         olrc_connect()
 
+def create_container():
+    '''Create the container on swift.'''
+
+    try:
+        swiftclient.client.put_container(STORAGE_URL, AUTH_TOKEN, CONTAINER)
+
+    except swiftclient.client.ClientException, e:
+        print(e)
+        sys.stdout.flush()
+        sys.stdout.write(
+            "\rError! {0} Failed to create container {1}".format(
+                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                CONTAINER
+            )
+        )
+
 
 def env_vars_set():
     '''Check all the required environment variables are set. Return false if
@@ -353,6 +369,7 @@ if __name__ == "__main__":
     n_processes = sys.argv[3]  # Number of processes to create for uploading.
 
     olrc_connect()
+    create_container()
 
     TOTAL = get_total_to_upload(table_name)
 
