@@ -19,11 +19,12 @@ class DatabaseConnection(object):
                 charset='utf8',
             )
             self.cursor = self.db.cursor()
-        except KeyError:
+        except KeyError as e:
+            print(e)
             sys.exit("Please make sure all required environment variables"
                      " are set:\n$MYSQL_HOST\n$MYSQL_DB\n$MYSQL_USER\n"
                      "$MYSQL_PASSWD\n")
-        except MySQLdb.Error, e:
+        except MySQLdb.Error as e:
             sys.exit("ERROR {0} IN CONNECTION: {1}".format(
                 e.args[0], e.args[1]
             ))
@@ -47,7 +48,7 @@ class DatabaseConnection(object):
 
         try:
             self.cursor.execute(query)
-        except MySQLdb.Error, e:
+        except MySQLdb.Error as e:
             sys.exit("ERROR {0} IN TABLE CREATION: {1}".format(
                 e.args[0],
                 e.args[1]
@@ -77,7 +78,7 @@ class DatabaseConnection(object):
         try:
             self.cursor.execute(query)
             self.db.commit()
-        except MySQLdb.Error, e:
+        except MySQLdb.Error as e:
             sys.exit("ERROR {0} IN QUERY: {1}\nQuery:{2}".format(
                 e.args[0],
                 e.args[1],

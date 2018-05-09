@@ -45,7 +45,7 @@ def upload_file(path, attempts=0):
      and return True if successful. '''
 
     try:
-        opened_source_file = open(path, 'r')
+        opened_source_file = open(path, 'rb')
     except IOError:
         print("Error opening: " + path)
         return False
@@ -66,7 +66,7 @@ def upload_file(path, attempts=0):
             path,
             opened_source_file)
 
-    except Exception, e:
+    except Exception as e:
 
         olrc_connect()
         time.sleep(1)
@@ -101,7 +101,7 @@ def olrc_connect():
         AUTH_TOKEN = auth_token
         global STORAGE_URL
         STORAGE_URL = connection_storage_url
-    except swiftclient.client.ClientException, e:
+    except swiftclient.client.ClientException as e:
         print(e)
         sys.stdout.flush()
         sys.stdout.write(
@@ -122,7 +122,7 @@ def create_container():
     try:
         swiftclient.client.put_container(STORAGE_URL, AUTH_TOKEN, CONTAINER)
 
-    except swiftclient.client.ClientException, e:
+    except swiftclient.client.ClientException as e:
         print(e)
         sys.stdout.flush()
         sys.stdout.write(
@@ -139,8 +139,8 @@ def env_vars_set():
 
     global REQUIRED_VARIABLES
     for required_variable in REQUIRED_VARIABLES:
-        if (not os.environ.get(required_variable)
-                and os.environ.get(required_variable) != ""):
+        if (required_variable not in os.environ
+                and os.environ[required_variable] != ""):
             return False
 
     return True
@@ -151,14 +151,14 @@ def set_env_vars():
     environment.'''
 
     global SWIFT_AUTH_URL
-    SWIFT_AUTH_URL = os.environ.get("OS_AUTH_URL")
+    SWIFT_AUTH_URL = os.environ["OS_AUTH_URL"]
 
     global USERNAME
-    USERNAME = os.environ.get("OS_TENANT_NAME") + \
-        ":" + os.environ.get("OS_USERNAME")
+    USERNAME = os.environ["OS_TENANT_NAME"] + \
+        ":" + os.environ["OS_USERNAME"]
 
     global PASSWORD
-    PASSWORD = os.environ.get("OS_PASSWORD")
+    PASSWORD = os.environ["OS_PASSWORD"]
 
     return
 
