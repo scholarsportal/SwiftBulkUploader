@@ -8,7 +8,7 @@ import datetime
 import socket
 import time
 import olrcdb
-from multiprocessing import Process, Lock, Value
+from multiprocessing import Process, Lock, Value, Manager
 from math import floor
 
 
@@ -24,6 +24,8 @@ SEGMENT_SIZE = 100*10**6
 COUNT = 0
 TOTAL = 0
 FAILED_COUNT = 0
+MANAGER = Manager()
+ENTRIES = MANAGER.list()
 BATCH = 1000  # the number of rows a process uploads at a time.
 SLEEP = 1  # Sleep timeout when trying to connect to the database.
 PATH_CUTOFF = ''  # The cutoff substring for paths
@@ -116,6 +118,7 @@ def olrc_connect():
 
         olrc_connect()
 
+
 def create_container():
     '''Create the container on swift.'''
 
@@ -163,58 +166,46 @@ def set_env_vars():
     return
 
 
-def upload_table(lock, range, table_name, counter, speed):
+def upload_table(lock, table_name, counter, speed):
     '''
     Given a table_name, upload all the paths from the table where upload is 0.
     Using the range value, complete a BATCH worth of uploads at a time.
     '''
-    global FAILED_COUNT, BATCH
+    def get_entry():
+        try:
+            return ENTRIES.pop()
+        except IndexError:
+            return None
 
-    connect = olrcdb.DatabaseConnection()
+    global FAILED_COUNT, BATCH
 
     # In order for the current process to upload a unique set of files,
     # acquire the lock to read from range's value.
     lock.acquire()
-    while range.value <= TOTAL:
-
-        # Grab a "BATCH" worth of file paths to upload.
-        query = (
-            "SELECT * FROM {0} WHERE uploaded=0"
-            " AND id >= {1} AND id <{2}".format(
-                table_name, range.value, range.value + BATCH))
-
-        # Let other processes know this batch has been accounted for.
-        range.value += BATCH
-        lock.release()
-
-        # Fetch results.
-        result = connect.execute_query(query)
-        path_tuple = result.fetchone()
-
-        # Loop until we run out of rows from the batch
-        while (path_tuple):
-
-            # If the upload is successful, update the database
-            if upload_file(path_tuple[1]):
-                lock.acquire()
-                counter.value += 1
-                lock.release()
-                set_uploaded(path_tuple[0], table_name)
-
-            else:
-                FAILED_COUNT += 1
-                error_log = open(table_name+'.upload.error.log', 'a')
-                error_log.write(
-                    "\rFailed: {0}\n".format(
-                        path_tuple[1].encode('utf-8')))
-                error_log.close()
-
-            print_status(counter, lock, speed, table_name)
-
-            path_tuple = result.fetchone()
-        lock.acquire()
-        #Executes on the last range.
+    cur_entry = get_entry()
     lock.release()
+
+    while cur_entry is not None:
+        # If the upload is successful, update the database
+        if upload_file(cur_entry[1]):
+            lock.acquire()
+            counter.value += 1
+            lock.release()
+            set_uploaded(cur_entry[0], table_name)
+
+        else:
+            FAILED_COUNT += 1
+            error_log = open(table_name+'.upload.error.log', 'a')
+            error_log.write(
+                "\rFailed: {0}\n".format(
+                    cur_entry[1].encode('utf-8')))
+            error_log.close()
+
+        print_status(counter, lock, speed, table_name)
+
+        lock.acquire()
+        cur_entry = get_entry()
+        lock.release()
 
 
 def get_total_to_upload(table_name):
@@ -344,11 +335,20 @@ def get_min_id(table_name):
     return int(result_tuple[0])
 
 
-def set_speed(lock, counter, speed, range):
+def get_all_entries_to_upload():
+    """Return a tuple of all database entries that need to be uploaded."""
+    # We order the entries descending because we are going to be popping this list (i.e. starting by the end)
+    query = "SELECT * FROM {0} WHERE uploaded=0 ORDER BY id DESC".format(table_name)
+    connect = olrcdb.DatabaseConnection()
+    result = connect.execute_query(query)
+    return result.fetchall()
+
+
+def set_speed(lock, counter, speed):
     '''Calculate the upload speed for the next minute and set it in the
     speed.'''
 
-    while range.value <= TOTAL:
+    while ENTRIES:
         lock.acquire()
         start_count = counter.value
         start_time = time.time()
@@ -390,9 +390,8 @@ if __name__ == "__main__":
     counter = Value("i", get_total_uploaded(table_name))
     lock = Lock()
 
-    # Processes share this id_range value and block of a chunk of ids
-    # for themselves to upload.
-    id_range = Value("i", get_min_id(table_name))
+    # Load entries into manager list
+    ENTRIES = MANAGER.list(get_all_entries_to_upload())
 
     speed = Value("d", 0.0)  # Tracker for upload speed.
 
@@ -406,10 +405,10 @@ if __name__ == "__main__":
             target=upload_table,
             args=(
                 lock,
-                id_range,
                 table_name,
                 counter,
-                speed))
+                speed
+            ))
 
         # Execute the upload_table function
         p.start()
@@ -421,8 +420,8 @@ if __name__ == "__main__":
         args=(
             lock,
             counter,
-            speed,
-            id_range))
+            speed
+        ))
     p.start()
     processes.append(p)
 
