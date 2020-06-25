@@ -8,13 +8,13 @@ These scripts assist in uploading an entire directory onto swift. They were inte
 * [Python Swiftclient][python-swiftclient]
 * MySQL database
 * The following environment variables
- * OS_AUTH_URL
- * OS_USERNAME
- * OS_TENANT_NAME
- * MYSQL_HOST
- * MYSQL_USER
- * MYSQL_PASSWD
- * MYSQL_DB
+  * OS_AUTH_URL
+  * OS_USERNAME
+  * OS_TENANT_NAME
+  * MYSQL_HOST
+  * MYSQL_USER
+  * MYSQL_PASSWD
+  * MYSQL_DB
 
 ## Usage
 Step 1. Index target directory with prepareupload.py
