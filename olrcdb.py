@@ -4,11 +4,11 @@ import MySQLdb
 
 
 class DatabaseConnection(object):
-    '''Connect to OLRC's mysql server.'''
+    """Connect to OLRC's mysql server."""
 
     def __init__(self):
-        '''Initiate connection the database. If connection credentials are not
-        available or connection fails throw exception.'''
+        """Initiate connection the database. If connection credentials are not
+        available or connection fails throw exception."""
         try:
 
             self.db = MySQLdb.connect(
@@ -29,14 +29,12 @@ class DatabaseConnection(object):
             ))
 
     def get_cursor(self):
-        '''Return a cursor for the database.'''
+        """Return a cursor for the database."""
 
         return self.cursor
 
     def create_table(self, table_name):
-        '''Given a table_name, create a table in the database.
-
-        '''
+        """Given a table_name, create a table in the database. """
 
         query = "CREATE TABLE {0} ( \
             `id` INTEGER  NOT NULL AUTO_INCREMENT,\
@@ -54,8 +52,8 @@ class DatabaseConnection(object):
             ))
 
     def insert_path(self, path, table_name, alt=False):
-        '''Insert the given path to the table_name. If alt, create
-        the query with reversed quotes.'''
+        """Insert the given path to the table_name. If alt, create
+        the query with reversed quotes."""
 
         if not alt:
             query = "INSERT INTO {0} (path) VALUES ('{1}');".format(
@@ -72,7 +70,7 @@ class DatabaseConnection(object):
         self.db.commit()
 
     def execute_query(self, query):
-        '''Execute the given query and return the cursor object.'''
+        """Execute the given query and return the cursor object."""
 
         try:
             self.cursor.execute(query)

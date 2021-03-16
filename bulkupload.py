@@ -1,18 +1,14 @@
-import filesegmenter
-import hashlib
-import os
-import shutil
-import swiftclient
-import sys
 import datetime
-import socket
+import os
+import sys
 import time
-import olrcdb
 from multiprocessing import Process, Lock, Value, Manager
-from math import floor
 
+import swiftclient
 
-#Settings
+import olrcdb
+
+# Settings
 AUTH_VERSION = 2
 SWIFT_AUTH_URL = ''
 USERNAME = ''
@@ -20,7 +16,7 @@ PASSWORD = ''
 CONTAINER = ''
 AUTH_TOKEN = ''
 STORAGE_URL = ''
-SEGMENT_SIZE = 100*10**6
+SEGMENT_SIZE = 100 * 10 ** 6
 COUNT = 0
 TOTAL = 0
 FAILED_COUNT = 0
@@ -29,6 +25,7 @@ ENTRIES = MANAGER.list()
 BATCH = 1000  # the number of rows a process uploads at a time.
 SLEEP = 1  # Sleep timeout when trying to connect to the database.
 PATH_CUTOFF = ''  # The cutoff substring for paths
+LOGDIR = '/data/swiftbulkuploader/logs_upload/'
 
 REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
@@ -43,13 +40,18 @@ REQUIRED_VARIABLES = [
 
 
 def upload_file(path, attempts=0):
-    '''Given String source_file, upload the file to the OLRC to target_file
-     and return True if successful. '''
+    """Given String source_file, upload the file to the OLRC to target_file
+     and return True if successful. """
 
     try:
         opened_source_file = open(path, 'r')
     except IOError:
-        print("Error opening: " + path)
+        try:
+            print("Error opening: " + path)
+            return False
+        except UnicodeEncodeError:
+            print("Error opening (+ unicode error): " + path.encode('utf-8'))
+            return False
         return False
     try:
 
@@ -72,8 +74,7 @@ def upload_file(path, attempts=0):
 
         olrc_connect()
         time.sleep(1)
-        if (attempts > 5):
-
+        if attempts > 5:
             sys.stdout.flush()
             sys.stdout.write("\rError! {0}\n".format(e))
             sys.stdout.write(
@@ -90,8 +91,8 @@ def upload_file(path, attempts=0):
 
 
 def olrc_connect():
-    '''Connect to the OLRC with the global variables. Exit if connection
-    fails.'''
+    """Connect to the OLRC with the global variables. Exit if connection
+    fails."""
 
     global SLEEP
 
@@ -120,7 +121,7 @@ def olrc_connect():
 
 
 def create_container():
-    '''Create the container on swift.'''
+    """Create the container on swift."""
 
     try:
         swiftclient.client.put_container(STORAGE_URL, AUTH_TOKEN, CONTAINER)
@@ -137,8 +138,8 @@ def create_container():
 
 
 def env_vars_set():
-    '''Check all the required environment variables are set. Return false if
-    any of them are undefined.'''
+    """Check all the required environment variables are set. Return false if
+    any of them are undefined."""
 
     global REQUIRED_VARIABLES
     for required_variable in REQUIRED_VARIABLES:
@@ -150,15 +151,15 @@ def env_vars_set():
 
 
 def set_env_vars():
-    '''Set the global variables for swift client assuming they exist in the
-    environment.'''
+    """Set the global variables for swift client assuming they exist in the
+    environment."""
 
     global SWIFT_AUTH_URL
     SWIFT_AUTH_URL = os.environ.get("OS_AUTH_URL")
 
     global USERNAME
     USERNAME = os.environ.get("OS_TENANT_NAME") + \
-        ":" + os.environ.get("OS_USERNAME")
+               ":" + os.environ.get("OS_USERNAME")
 
     global PASSWORD
     PASSWORD = os.environ.get("OS_PASSWORD")
@@ -167,10 +168,11 @@ def set_env_vars():
 
 
 def upload_table(lock, table_name, counter, speed):
-    '''
+    """
     Given a table_name, upload all the paths from the table where upload is 0.
     Using the range value, complete a BATCH worth of uploads at a time.
-    '''
+    """
+
     def get_entry():
         try:
             return ENTRIES.pop()
@@ -195,7 +197,7 @@ def upload_table(lock, table_name, counter, speed):
 
         else:
             FAILED_COUNT += 1
-            error_log = open(table_name+'.upload.error.log', 'a')
+            error_log = open(LOGDIR + table_name + '.upload.error.log', 'a')
             error_log.write(
                 "\rFailed: {0}\n".format(
                     cur_entry[1].encode('utf-8')))
@@ -209,7 +211,7 @@ def upload_table(lock, table_name, counter, speed):
 
 
 def get_total_to_upload(table_name):
-    '''Given a table_name, get the total number of rows'''
+    """Given a table_name, get the total number of rows"""
 
     query = "SELECT COUNT(*) FROM {0}".format(table_name)
 
@@ -220,7 +222,7 @@ def get_total_to_upload(table_name):
 
 
 def get_total_uploaded(table_name):
-    '''Given a table_name, get the total number of rows where upload is 1.'''
+    """Given a table_name, get the total number of rows where upload is 1."""
 
     query = "SELECT COUNT(*) FROM {0} WHERE uploaded=1".format(table_name)
 
@@ -231,7 +233,7 @@ def get_total_uploaded(table_name):
 
 
 def set_uploaded(id, table_name):
-    '''For the given path, set uploaded to 1 in table_name.'''
+    """For the given path, set uploaded to 1 in table_name."""
     query = "UPDATE {0} set uploaded='1' WHERE id='{1}'".format(
         table_name,
         id
@@ -242,14 +244,14 @@ def set_uploaded(id, table_name):
 
 
 def check_env_args():
-    '''Do checks on the environment and args.'''
+    """Do checks on the environment and args."""
     # Check environment variables
     if not env_vars_set():
         set_env_message = "The following environment variables need to be " \
-            "set:\n"
+                          "set:\n"
         set_env_message += " \n".join(REQUIRED_VARIABLES)
         set_env_message += "\nPlease set these environment variables to " \
-            "connect to the OLRC."
+                           "connect to the OLRC."
         print(set_env_message)
         exit(0)
     else:
@@ -257,11 +259,11 @@ def check_env_args():
 
     total = len(sys.argv)
     usage = "Please pass in a few arguments, see example below \n" \
-        "python bulkupload.py container-name mysql-table n-processes path-cutoff\n" \
-        "where mysql-table is table created from prepareupload.py, " \
-        "n-process is the number of processes created to run this script and" \
-        " path-cutoff is the string that indicates from where the path is" \
-        " truncated from the front."
+            "python bulkupload.py container-name mysql-table n-processes path-cutoff\n" \
+            "where mysql-table is table created from prepareupload.py, " \
+            "n-process is the number of processes created to run this script and" \
+            " path-cutoff is the string that indicates from where the path is" \
+            " truncated from the front."
 
     # Do not execute if no directory provided.
     if total != 4 and total != 5:
@@ -270,10 +272,10 @@ def check_env_args():
 
 
 def start_reporting(table_name):
-    '''Create an error log file. Note the time of execution.'''
+    """Create an error log file. Note the time of execution."""
 
-    #Open error log:
-    error_log = open(table_name + '.upload.error.log', 'w+')
+    # Open error log:
+    error_log = open(LOGDIR + table_name + '.upload.error.log', 'w+')
     error_log.write("From execution {0}:\n".format(
         str(datetime.datetime.now())
     ))
@@ -281,26 +283,26 @@ def start_reporting(table_name):
 
 
 def end_reporting(counter, table_name):
-    '''Create a report log. Output upload summary.'''
+    """Create a report log. Output upload summary."""
 
-    report_log = open(table_name + '.upload.report.log', 'w+')
+    report_log = open(LOGDIR + table_name + '.upload.report.log', 'w+')
     report_log.write("From execution {0}:\n".format(
         str(datetime.datetime.now())
     ))
     report = "\nTotal uploaded: {0}\nTotal failed uploaded: {1}\n" \
-        "Failed uploads stored in error.log\n" \
-        "Reported saved in report.log.\n" \
+             "Failed uploads stored in error.log\n" \
+             "Reported saved in report.log.\n" \
         .format(counter.value, FAILED_COUNT)
     report_log.write(report)
     report_log.close()
 
-    #Output report to user
+    # Output report to user
     sys.stdout.flush()
     sys.stdout.write(report)
 
 
 def print_status(counter, lock, speed, table_name):
-    '''Print the current status of uploaded files.'''
+    """Print the current status of uploaded files."""
     global TOTAL
 
     lock.acquire()
@@ -314,8 +316,8 @@ def print_status(counter, lock, speed, table_name):
     sys.stdout.write("\r{0}% Uploaded at {1:.2f} uploads/second. ".format(
         percentage_uploaded, speed.value))
 
-    #Log the final count
-    report = open(table_name + ".upload.out", 'w+')
+    # Log the final count
+    report = open(LOGDIR + table_name + ".upload.out", 'w+')
     report.write(
         "\r{0}% Uploaded at {1:.2f} uploads/second. ".format(
             percentage_uploaded, speed.value))
@@ -323,7 +325,7 @@ def print_status(counter, lock, speed, table_name):
 
 
 def get_min_id(table_name):
-    '''Return the minimum id from table_name where uploaded=0'''
+    """Return the minimum id from table_name where uploaded=0"""
 
     query = "SELECT MIN(id) FROM {0} WHERE uploaded=0".format(table_name)
 
@@ -345,8 +347,8 @@ def get_all_entries_to_upload():
 
 
 def set_speed(lock, counter, speed):
-    '''Calculate the upload speed for the next minute and set it in the
-    speed.'''
+    """Calculate the upload speed for the next minute and set it in the
+    speed."""
 
     while ENTRIES:
         lock.acquire()
@@ -363,8 +365,8 @@ def set_speed(lock, counter, speed):
 
         lock.acquire()
         speed.value = (
-            float(stop_count - start_count) /
-            float(stop_time - start_time)
+                float(stop_count - start_count) /
+                float(stop_time - start_time)
         )
 
         # Save the speed calculation.
@@ -379,7 +381,7 @@ if __name__ == "__main__":
     table_name = sys.argv[2]  # Name of table to read file paths from.
     n_processes = sys.argv[3]  # Number of processes to create for uploading.
     if len(sys.argv) == 5:
-        PATH_CUTOFF = sys.argv[4] # The path cutoff
+        PATH_CUTOFF = sys.argv[4]  # The path cutoff
 
     olrc_connect()
     create_container()
@@ -425,7 +427,7 @@ if __name__ == "__main__":
     p.start()
     processes.append(p)
 
-    #Join all processes
+    # Join all processes
     for process in processes:
         process.join()
 

@@ -2,12 +2,12 @@ import os
 
 
 def split_file(file_path, directory, size):
-    '''Given a path to a file and create size byte partitions of the file.
+    """Given a path to a file and create size byte partitions of the file.
     Partitions are stored in the directory directory.
 
     Create the directory if it does not exist.
 
-    Return a list of file paths to these partitions.'''
+    Return a list of file paths to these partitions."""
 
     fileNumber = 0
     files_created = []
@@ -43,10 +43,10 @@ def split_file(file_path, directory, size):
 
 
 def create_file_path(directory, file_path):
-    '''Given a directory to store a file in and a file_path, create the
-    requried directories within directory to mimic file_path.
+    """Given a directory to store a file in and a file_path, create the
+    required directories within directory to mimic file_path.
 
-    Return the path created.'''
+    Return the path created."""
 
     try:
         os.makedirs(directory)
