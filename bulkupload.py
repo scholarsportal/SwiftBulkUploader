@@ -9,7 +9,7 @@ import swiftclient
 import olrcdb
 
 # Settings
-AUTH_VERSION = 2
+AUTH_VERSION = 3
 SWIFT_AUTH_URL = ''
 USERNAME = ''
 PASSWORD = ''
@@ -31,11 +31,11 @@ REQUIRED_VARIABLES = [
     'OS_AUTH_URL',
     'OS_USERNAME',
     'OS_TENANT_NAME',
-    'OS_PASSWORD',
-    "MYSQL_HOST",
-    "MYSQL_USER",
-    "MYSQL_PASSWD",
-    "MYSQL_DB"
+    'OS_PASSWORD'
+    'MYSQL_HOST',
+    'MYSQL_USER',
+    'MYSQL_PASSWD',
+    'MYSQL_DB'
 ]
 
 
@@ -52,7 +52,6 @@ def upload_file(path, attempts=0):
         except UnicodeEncodeError:
             print("Error opening (+ unicode error): " + path.encode('utf-8'))
             return False
-        return False
     try:
 
         if PATH_CUTOFF:
@@ -70,7 +69,7 @@ def upload_file(path, attempts=0):
             path,
             opened_source_file)
 
-    except Exception, e:
+    except Exception as e:
 
         olrc_connect()
         time.sleep(1)
@@ -104,7 +103,7 @@ def olrc_connect():
         AUTH_TOKEN = auth_token
         global STORAGE_URL
         STORAGE_URL = connection_storage_url
-    except swiftclient.client.ClientException, e:
+    except swiftclient.client.ClientException as e:
         print(e)
         sys.stdout.flush()
         sys.stdout.write(
@@ -126,7 +125,7 @@ def create_container():
     try:
         swiftclient.client.put_container(STORAGE_URL, AUTH_TOKEN, CONTAINER)
 
-    except swiftclient.client.ClientException, e:
+    except swiftclient.client.ClientException as e:
         print(e)
         sys.stdout.flush()
         sys.stdout.write(
