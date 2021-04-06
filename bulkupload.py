@@ -9,13 +9,19 @@ import swiftclient
 import olrcdb
 
 # Settings
-AUTH_VERSION = 3
 SWIFT_AUTH_URL = ''
 USERNAME = ''
 PASSWORD = ''
+USER_DOMAIN = ''
 CONTAINER = ''
 AUTH_TOKEN = ''
 STORAGE_URL = ''
+PROJECT_NAME = ''
+PROJECT_DOMAIN = ''
+REGION_NAME = ''
+INTERFACE = ''
+IDENTITY_API_VERSION = ''
+OS_OPTIONS=dict()
 SEGMENT_SIZE = 100 * 10 ** 6
 COUNT = 0
 TOTAL = 0
@@ -28,10 +34,15 @@ PATH_CUTOFF = ''  # The cutoff substring for paths
 LOGDIR = '/data/swiftbulkuploader/logs_upload/'
 
 REQUIRED_VARIABLES = [
-    'OS_AUTH_URL',
+    'OS_PASSWORD',
     'OS_USERNAME',
-    'OS_TENANT_NAME',
-    'OS_PASSWORD'
+    'OS_PROJECT_NAME',
+    'OS_PROJECT_DOMAIN_NAME',
+    'OS_USER_DOMAIN_NAME',
+    'OS_AUTH_URL',
+    'OS_REGION_NAME',
+    'OS_INTERFACE',
+    'OS_IDENTITY_API_VERSION',
     'MYSQL_HOST',
     'MYSQL_USER',
     'MYSQL_PASSWD',
@@ -98,7 +109,9 @@ def olrc_connect():
     try:
         (connection_storage_url, auth_token) = swiftclient.client.get_auth(
             SWIFT_AUTH_URL, USERNAME, PASSWORD,
-            auth_version=AUTH_VERSION)
+            auth_version=int(IDENTITY_API_VERSION),
+            os_options=OS_OPTIONS
+        )
         global AUTH_TOKEN
         AUTH_TOKEN = auth_token
         global STORAGE_URL
@@ -136,12 +149,10 @@ def create_container():
         )
 
 
-def env_vars_set():
+def env_vars_set(required_variables):
     """Check all the required environment variables are set. Return false if
     any of them are undefined."""
-
-    global REQUIRED_VARIABLES
-    for required_variable in REQUIRED_VARIABLES:
+    for required_variable in required_variables:
         if (not os.environ.get(required_variable)
                 and os.environ.get(required_variable) != ""):
             return False
@@ -157,13 +168,26 @@ def set_env_vars():
     SWIFT_AUTH_URL = os.environ.get("OS_AUTH_URL")
 
     global USERNAME
-    USERNAME = os.environ.get("OS_TENANT_NAME") + \
-               ":" + os.environ.get("OS_USERNAME")
+    # USERNAME = os.environ.get("OS_TENANT_NAME") + \
+    #            ":" + os.environ.get("OS_USERNAME")
+    USERNAME = os.environ.get("OS_USERNAME")
 
     global PASSWORD
     PASSWORD = os.environ.get("OS_PASSWORD")
 
-    return
+    try:
+        global IDENTITY_API_VERSION
+        IDENTITY_API_VERSION = int(os.environ.get("OS_IDENTITY_API_VERSION"))
+    except ValueError:
+        raise ValueError("Environment variable OS_IDENTITY_API_VERSION needs to be a number. Got %s instead."
+                         % IDENTITY_API_VERSION)
+
+    OS_OPTIONS["user_domain_name"] = os.environ.get("OS_USER_DOMAIN_NAME")
+    OS_OPTIONS["project_name"] = os.environ.get("OS_PROJECT_NAME")
+    OS_OPTIONS["project_domain_name"] = os.environ.get("OS_PROJECT_DOMAIN_NAME")
+    OS_OPTIONS["auth_version"] = IDENTITY_API_VERSION
+    OS_OPTIONS["region_name"] = os.environ.get("OS_REGION_NAME")
+    OS_OPTIONS["endpoint_type"] = os.environ.get("OS_INTERFACE")
 
 
 def upload_table(lock, table_name, counter, speed):
@@ -245,7 +269,7 @@ def set_uploaded(id, table_name):
 def check_env_args():
     """Do checks on the environment and args."""
     # Check environment variables
-    if not env_vars_set():
+    if not env_vars_set(REQUIRED_VARIABLES):
         set_env_message = "The following environment variables need to be " \
                           "set:\n"
         set_env_message += " \n".join(REQUIRED_VARIABLES)

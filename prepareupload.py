@@ -73,7 +73,7 @@ if __name__ == "__main__":
         directory = sys.argv[1]
 
     # Check required environment variables have been set
-    if not env_vars_set():
+    if not env_vars_set(REQUIRED_VARIABLES):
         set_env_message = "The following environment variables need to be " \
                           "set:\n"
         set_env_message += " \n".join(REQUIRED_VARIABLES)
