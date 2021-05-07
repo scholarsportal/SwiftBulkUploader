@@ -1,0 +1,4 @@
+PyMySQL
+python-keystoneclient
+python-openstackclient
+python-swiftclient

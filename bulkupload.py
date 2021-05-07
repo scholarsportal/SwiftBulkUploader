@@ -9,83 +9,70 @@ import swiftclient
 import olrcdb
 
 # Settings
-AUTH_VERSION = 2
-SWIFT_AUTH_URL = ''
-USERNAME = ''
-PASSWORD = ''
-CONTAINER = ''
-AUTH_TOKEN = ''
-STORAGE_URL = ''
 SEGMENT_SIZE = 100 * 10 ** 6
 COUNT = 0
-TOTAL = 0
 FAILED_COUNT = 0
-MANAGER = Manager()
-ENTRIES = MANAGER.list()
-BATCH = 1000  # the number of rows a process uploads at a time.
 SLEEP = 1  # Sleep timeout when trying to connect to the database.
-PATH_CUTOFF = ''  # The cutoff substring for paths
 LOGDIR = '/data/swiftbulkuploader/logs_upload/'
 
 REQUIRED_VARIABLES = [
-    'OS_AUTH_URL',
-    'OS_USERNAME',
-    'OS_TENANT_NAME',
     'OS_PASSWORD',
-    "MYSQL_HOST",
-    "MYSQL_USER",
-    "MYSQL_PASSWD",
-    "MYSQL_DB"
+    'OS_USERNAME',
+    'OS_PROJECT_NAME',
+    'OS_PROJECT_DOMAIN_NAME',
+    'OS_USER_DOMAIN_NAME',
+    'OS_AUTH_URL',
+    'OS_REGION_NAME',
+    'OS_INTERFACE',
+    'OS_IDENTITY_API_VERSION',
+    'MYSQL_HOST',
+    'MYSQL_USER',
+    'MYSQL_PASSWD',
+    'MYSQL_DB'
 ]
 
 
-def upload_file(path, attempts=0):
+def upload_file(path, connection_storage_url, auth_token, container, path_cutoff="", attempts=0):
     """Given String source_file, upload the file to the OLRC to target_file
      and return True if successful. """
-
     try:
-        opened_source_file = open(path, 'r')
-    except IOError:
+        opened_source_file = open(path, 'rb')
+    except IOError as e:
         try:
-            print("Error opening: " + path)
+            print("Error opening %s: %s" % (path, str(e)))
             return False
         except UnicodeEncodeError:
             print("Error opening (+ unicode error): " + path.encode('utf-8'))
             return False
-        return False
+
+    swift_path = path
+
+    if path_cutoff:
+        swift_path = swift_path.lstrip(path_cutoff)
+
+    # Paths beginning with "/" will lose their folder structure on swift.
+    # Removing it will preserve it.
+    if swift_path == "/":
+        swift_path = swift_path[1:]
+
     try:
-
-        if PATH_CUTOFF:
-            path = path.split(PATH_CUTOFF)[-1]
-
-        # Paths beginning with "/" will lose their folder structure on swift.
-        # Removing it will preserve it.
-        if path[0] == "/":
-            path = path[1:]
-
         swiftclient.client.put_object(
-            STORAGE_URL,
-            AUTH_TOKEN,
-            CONTAINER,
-            path,
+            connection_storage_url,
+            auth_token,
+            container,
+            swift_path,
             opened_source_file)
-
-    except Exception, e:
-
-        olrc_connect()
-        time.sleep(1)
-        if attempts > 5:
-            sys.stdout.flush()
-            sys.stdout.write("\rError! {0}\n".format(e))
-            sys.stdout.write(
-                "Error! {0} Upload to OLRC failed"
-                " after {1} attempts.\n".format(
-                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                    attempts
-                )
+    except (UnicodeDecodeError, ConnectionError, swiftclient.client.ClientException) as e:
+        sys.stderr.flush()
+        sys.stderr.write(
+            "\rError! {0} Uploading {1} to OLRC encountered the following issue: "
+            "{2}".format(
+                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                path,
+                str(e)
             )
-            return False
-        return upload_file(path, attempts + 1)
+        )
+        return False
 
     return True
 
@@ -96,15 +83,15 @@ def olrc_connect():
 
     global SLEEP
 
+    swift_auth_url, username, password, identity_api_version, os_options = get_env_vars()
+
     try:
-        (connection_storage_url, auth_token) = swiftclient.client.get_auth(
-            SWIFT_AUTH_URL, USERNAME, PASSWORD,
-            auth_version=AUTH_VERSION)
-        global AUTH_TOKEN
-        AUTH_TOKEN = auth_token
-        global STORAGE_URL
-        STORAGE_URL = connection_storage_url
-    except swiftclient.client.ClientException, e:
+        return swiftclient.client.get_auth(
+            swift_auth_url, username, password,
+            auth_version=identity_api_version,
+            os_options=os_options
+        )
+    except swiftclient.client.ClientException as e:
         print(e)
         sys.stdout.flush()
         sys.stdout.write(
@@ -117,32 +104,30 @@ def olrc_connect():
         time.sleep(SLEEP)
         SLEEP += 1
 
-        olrc_connect()
+        return olrc_connect()
 
 
-def create_container():
+def create_container(storage_url, auth_token, container):
     """Create the container on swift."""
 
     try:
-        swiftclient.client.put_container(STORAGE_URL, AUTH_TOKEN, CONTAINER)
+        swiftclient.client.put_container(storage_url, auth_token, container)
 
-    except swiftclient.client.ClientException, e:
+    except swiftclient.client.ClientException as e:
         print(e)
         sys.stdout.flush()
         sys.stdout.write(
             "\rError! {0} Failed to create container {1}".format(
                 time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                CONTAINER
+                container
             )
         )
 
 
-def env_vars_set():
+def env_vars_set(required_variables):
     """Check all the required environment variables are set. Return false if
     any of them are undefined."""
-
-    global REQUIRED_VARIABLES
-    for required_variable in REQUIRED_VARIABLES:
+    for required_variable in required_variables:
         if (not os.environ.get(required_variable)
                 and os.environ.get(required_variable) != ""):
             return False
@@ -150,24 +135,34 @@ def env_vars_set():
     return True
 
 
-def set_env_vars():
-    """Set the global variables for swift client assuming they exist in the
+def get_env_vars():
+    """Get the global variables for swift client assuming they exist in the
     environment."""
 
-    global SWIFT_AUTH_URL
-    SWIFT_AUTH_URL = os.environ.get("OS_AUTH_URL")
+    swift_auth_url = os.environ.get("OS_AUTH_URL")
+    username = os.environ.get("OS_USERNAME")
+    password = os.environ.get("OS_PASSWORD")
 
-    global USERNAME
-    USERNAME = os.environ.get("OS_TENANT_NAME") + \
-               ":" + os.environ.get("OS_USERNAME")
+    try:
+        identity_api_version = int(os.environ.get("OS_IDENTITY_API_VERSION"))
+    except ValueError:
+        raise ValueError("Environment variable OS_IDENTITY_API_VERSION needs to be a number. Got %s instead."
+                         % os.environ.get("OS_IDENTITY_API_VERSION"))
 
-    global PASSWORD
-    PASSWORD = os.environ.get("OS_PASSWORD")
+    os_options = {
+        "user_domain_name": os.environ.get("OS_USER_DOMAIN_NAME"),
+        "project_name": os.environ.get("OS_PROJECT_NAME"),
+        "project_domain_name": os.environ.get("OS_PROJECT_DOMAIN_NAME"),
+        "auth_version": identity_api_version,
+        "region_name": os.environ.get("OS_REGION_NAME"),
+        "endpoint_type": os.environ.get("OS_INTERFACE")
+    }
 
-    return
+    return swift_auth_url, username, password, identity_api_version, os_options
 
 
-def upload_table(lock, table_name, counter, speed):
+def upload_table(lock, table_name, container, counter, failed_counter, speed, connection_storage_url,
+                 auth_token, entries, path_cutoff=""):
     """
     Given a table_name, upload all the paths from the table where upload is 0.
     Using the range value, complete a BATCH worth of uploads at a time.
@@ -175,11 +170,13 @@ def upload_table(lock, table_name, counter, speed):
 
     def get_entry():
         try:
-            return ENTRIES.pop()
+            return entries.pop()
         except IndexError:
             return None
 
-    global FAILED_COUNT, BATCH
+    global FAILED_COUNT
+
+    total = get_total_to_upload(table_name)
 
     # In order for the current process to upload a unique set of files,
     # acquire the lock to read from range's value.
@@ -188,22 +185,43 @@ def upload_table(lock, table_name, counter, speed):
     lock.release()
 
     while cur_entry is not None:
-        # If the upload is successful, update the database
-        if upload_file(cur_entry[1]):
-            lock.acquire()
-            counter.value += 1
-            lock.release()
-            set_uploaded(cur_entry[0], table_name)
+        retry = 0
+        success = False
 
-        else:
-            FAILED_COUNT += 1
+        while retry < 5 and not success:
+            # If the upload is successful, update the database
+            if upload_file(cur_entry[1], connection_storage_url, auth_token, container, path_cutoff=path_cutoff):
+                lock.acquire()
+                counter.value += 1
+                lock.release()
+                set_uploaded(cur_entry[0], table_name)
+                success = True
+            else:
+                retry += 1
+                time.sleep(1)
+                connection_storage_url, auth_token = olrc_connect()
+
+        if not success:
+            lock.acquire()
+            sys.stdout.flush()
+            sys.stdout.write(
+                "Error! {0} Upload of {1} to OLRC failed"
+                " after {2} attempts.\n".format(
+                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                    cur_entry[1],
+                    retry
+                )
+            )
+
+            failed_counter.value += 1
             error_log = open(LOGDIR + table_name + '.upload.error.log', 'a')
             error_log.write(
                 "\rFailed: {0}\n".format(
                     cur_entry[1].encode('utf-8')))
             error_log.close()
+            lock.release()
 
-        print_status(counter, lock, speed, table_name)
+        print_status(counter, lock, speed, table_name, total)
 
         lock.acquire()
         cur_entry = get_entry()
@@ -246,7 +264,7 @@ def set_uploaded(id, table_name):
 def check_env_args():
     """Do checks on the environment and args."""
     # Check environment variables
-    if not env_vars_set():
+    if not env_vars_set(REQUIRED_VARIABLES):
         set_env_message = "The following environment variables need to be " \
                           "set:\n"
         set_env_message += " \n".join(REQUIRED_VARIABLES)
@@ -254,8 +272,6 @@ def check_env_args():
                            "connect to the OLRC."
         print(set_env_message)
         exit(0)
-    else:
-        set_env_vars()
 
     total = len(sys.argv)
     usage = "Please pass in a few arguments, see example below \n" \
@@ -282,7 +298,7 @@ def start_reporting(table_name):
     error_log.close()
 
 
-def end_reporting(counter, table_name):
+def end_reporting(counter, failed_counter, table_name):
     """Create a report log. Output upload summary."""
 
     report_log = open(LOGDIR + table_name + '.upload.report.log', 'w+')
@@ -292,7 +308,7 @@ def end_reporting(counter, table_name):
     report = "\nTotal uploaded: {0}\nTotal failed uploaded: {1}\n" \
              "Failed uploads stored in error.log\n" \
              "Reported saved in report.log.\n" \
-        .format(counter.value, FAILED_COUNT)
+        .format(counter.value, failed_counter.value)
     report_log.write(report)
     report_log.close()
 
@@ -301,13 +317,11 @@ def end_reporting(counter, table_name):
     sys.stdout.write(report)
 
 
-def print_status(counter, lock, speed, table_name):
+def print_status(counter, lock, speed, table_name, total):
     """Print the current status of uploaded files."""
-    global TOTAL
-
     lock.acquire()
     percentage_uploaded = format(
-        (float(counter.value) / float(TOTAL)) * 100,
+        (float(counter.value) / float(total)) * 100,
         '.8f'
     )
     lock.release()
@@ -346,11 +360,11 @@ def get_all_entries_to_upload():
     return result.fetchall()
 
 
-def set_speed(lock, counter, speed):
+def set_speed(lock, counter, speed, entries):
     """Calculate the upload speed for the next minute and set it in the
     speed."""
 
-    while ENTRIES:
+    while entries:
         lock.acquire()
         start_count = counter.value
         start_time = time.time()
@@ -377,40 +391,49 @@ if __name__ == "__main__":
 
     check_env_args()
 
-    CONTAINER = sys.argv[1]  # Swift container files will be uploaded to.
+    container = sys.argv[1]  # Swift container files will be uploaded to.
     table_name = sys.argv[2]  # Name of table to read file paths from.
-    n_processes = sys.argv[3]  # Number of processes to create for uploading.
+    n_processes = int(sys.argv[3])  # Number of processes to create for uploading.
     if len(sys.argv) == 5:
-        PATH_CUTOFF = sys.argv[4]  # The path cutoff
+        path_cutoff = sys.argv[4]  # The path cutoff
+    else:
+        path_cutoff = ''
 
-    olrc_connect()
-    create_container()
+    storage_url, auth_token = olrc_connect()
+    create_container(storage_url, auth_token, container)
 
-    TOTAL = get_total_to_upload(table_name)
+    start_reporting(table_name)
 
+    manager = Manager()
     # Integer value of uploaded files within target table.
     counter = Value("i", get_total_uploaded(table_name))
+    failed_counter = Value("i", 0)
     lock = Lock()
 
     # Load entries into manager list
-    ENTRIES = MANAGER.list(get_all_entries_to_upload())
+    entries = manager.list(get_all_entries_to_upload())
 
     speed = Value("d", 0.0)  # Tracker for upload speed.
 
     processes = []
 
-    start_reporting(table_name)
-
     # Create a new process n times.
-    for process in range(int(n_processes)):
+    for process in range(n_processes):
         p = Process(
             target=upload_table,
             args=(
                 lock,
                 table_name,
+                container,
                 counter,
-                speed
-            ))
+                failed_counter,
+                speed,
+                storage_url,
+                auth_token,
+                entries
+            ),
+            kwargs={"path_cutoff": path_cutoff}
+        )
 
         # Execute the upload_table function
         p.start()
@@ -422,7 +445,8 @@ if __name__ == "__main__":
         args=(
             lock,
             counter,
-            speed
+            speed,
+            entries
         ))
     p.start()
     processes.append(p)
@@ -431,4 +455,4 @@ if __name__ == "__main__":
     for process in processes:
         process.join()
 
-    end_reporting(counter, table_name)
+    end_reporting(counter, failed_counter, table_name)

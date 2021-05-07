@@ -1,17 +1,17 @@
 import os
 import sys
-import MySQLdb
+import pymysql
 
 
 class DatabaseConnection(object):
-    """Connect to OLRC's mysql server."""
+    """Connect to OLRCs mysql server."""
 
     def __init__(self):
         """Initiate connection the database. If connection credentials are not
         available or connection fails throw exception."""
         try:
 
-            self.db = MySQLdb.connect(
+            self.db = pymysql.connect(
                 host=os.environ["MYSQL_HOST"],
                 user=os.environ["MYSQL_USER"],
                 passwd=os.environ["MYSQL_PASSWD"],
@@ -23,7 +23,7 @@ class DatabaseConnection(object):
             sys.exit("Please make sure all required environment variables"
                      " are set:\n$MYSQL_HOST\n$MYSQL_DB\n$MYSQL_USER\n"
                      "$MYSQL_PASSWD\n")
-        except MySQLdb.Error, e:
+        except pymysql.Error as e:
             sys.exit("ERROR {0} IN CONNECTION: {1}".format(
                 e.args[0], e.args[1]
             ))
@@ -45,7 +45,7 @@ class DatabaseConnection(object):
 
         try:
             self.cursor.execute(query)
-        except MySQLdb.Error, e:
+        except pymysql.Error as e:
             sys.exit("ERROR {0} IN TABLE CREATION: {1}".format(
                 e.args[0],
                 e.args[1]
@@ -75,7 +75,7 @@ class DatabaseConnection(object):
         try:
             self.cursor.execute(query)
             self.db.commit()
-        except MySQLdb.Error, e:
+        except pymysql.Error as e:
             sys.exit("ERROR {0} IN QUERY: {1}\nQuery:{2}".format(
                 e.args[0],
                 e.args[1],
